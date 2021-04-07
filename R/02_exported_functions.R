@@ -16,40 +16,65 @@
 #'
 #' @export
 #' @importFrom utils read.csv
-read_wide <- function(file, description = 1:3, time = 1, header = TRUE,  ...) {
-    mydata <- read.csv(file, header = header, ...)
-    allnames <- colnames(mydata)
+#'
+#' @examples
+#' ## Import example data set
+#' sim_data_wide_file <- system.file(
+#'     "extdata", "sim_data_wide.csv",
+#'     package = "blotIt3"
+#' )
+#' read_wide(sim_data_wide_file, description = seq_len(3))
+read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
+    my_data <- read.csv(file, header = header, ...)
+    all_names <- colnames(my_data)
 
-    # Translate characters to numeric if necessary
-    if (is.character(description)) ndescription <- which(colnames(mydata) %in% description) else ndescription <- description
-    if (is.character(time)) ntime <- which(colnames(mydata) == time) else ntime <- time
-
-    # Check availability of description and time
-    if (length(ndescription) < length(description)) {
-        warning("Not all columns proposed by argument 'description' are available in file. \nTaking the available ones.")
+    if (is.null(description)) {
+        stop("Specify columns containing descriptions.")
+    }
+    if (is.character(description)) {
+        n_description <- which(colnames(my_data) %in% description)
+    } else {
+        n_description <- description
+    }
+    # Check the index of the "time" column
+    if (is.character(time)) {
+        n_time <- which(colnames(my_data) == time)
+    } else {
+        n_time <- time
     }
 
-    if (length(ntime) == 0) {
-        stop("File did not contain a time column as proposed by 'time' argument.")
+    # Check availability of description and time
+    if (length(n_description) < length(description)) {
+        warning(
+            "Not all columns proposed by argument 'description' are available
+            in file.\n
+            Taking the available ones."
+        )
+    }
+
+    if (length(n_time) == 0) {
+        stop(
+            "File did not contain a time column as proposed by 'time' argument."
+        )
     }
 
     # Distinguish description data from measurement data
-    Description <- mydata[, ndescription]
-    restLong <- unlist(mydata[, -ndescription])
+    description_entries <- my_data[, n_description]
+    rest_long <- unlist(my_data[, -n_description])
 
     # Create output data frame
-    newdata <- data.frame(
-        Description,
-        name = rep(allnames[-ndescription], each = dim(mydata)[1]),
-        value = restLong
+    new_data <- data.frame(
+        description_entries,
+        name = rep(all_names[-n_description], each = dim(my_data)[1]),
+        value = rest_long
     )
 
     # Remove missing items
-    newdata <- newdata[!is.nan(newdata$value), ]
-    newdata <- newdata[!is.na(newdata$value), ]
+    new_data <- new_data[!is.nan(new_data$value), ]
+    new_data <- new_data[!is.na(new_data$value), ]
 
 
-    colnames(newdata)[ntime] <- "time"
+    colnames(new_data)[n_time] <- "time"
 
-    return(newdata)
+    return(new_data)
 }
