@@ -36,19 +36,18 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
     } else {
         n_description <- description
     }
-    # Check the index of the "time" column
+    ## Check the index of the "time" column
     if (is.character(time)) {
         n_time <- which(colnames(my_data) == time)
     } else {
         n_time <- time
     }
 
-    # Check availability of description and time
+    ## Check availability of description and time
     if (length(n_description) < length(description)) {
         warning(
-            "Not all columns proposed by argument 'description' are available
-            in file.\n
-            Taking the available ones."
+            "Not all columns proposed by argument 'description' are available",
+            " in file.\nTaking the available ones."
         )
     }
 

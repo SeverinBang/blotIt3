@@ -4,7 +4,7 @@
 \alias{read_wide}
 \title{Import measurement data}
 \usage{
-read_wide(file, description = seq_len(3), time = 1, header = TRUE, ...)
+read_wide(file, description = NULL, time = 1, header = TRUE, ...)
 }
 \arguments{
 \item{file}{character, the name of the data file.}
@@ -28,7 +28,7 @@ Data from a given wide style csv-file is imported. While importing, the data
 is converted into a long table
 }
 \examples{
-#' ## Import example data set
+## Import example data set
 sim_data_wide_file <- system.file(
     "extdata", "sim_data_wide.csv",
     package = "blotIt3"

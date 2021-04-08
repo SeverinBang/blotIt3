@@ -15,8 +15,20 @@ test_that("read_wide works properly", {
         ),
         length(sim_data_wide) - 3
     )
+
     expect_error(
-      read_wide(sim_data_wide_file),
-      "Specify columns containing descriptions."
+        read_wide(sim_data_wide_file),
+        "Specify columns containing descriptions."
+    )
+
+    expect_warning(
+        read_wide(
+            sim_data_wide_file,
+            description = c("time", "does_not_exist")
+        ),
+        paste0(
+            "Not all columns proposed by argument 'description' are available",
+            " in file.\nTaking the available ones."
+        )
     )
 })
