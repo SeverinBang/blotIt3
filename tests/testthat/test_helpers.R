@@ -54,3 +54,27 @@ test_that("identify_parameters()", {
         "Left and right-hand side of formula 'error' is needed"
     )
 })
+
+
+
+# replace_symbols() -------------------------------------------------------
+
+test_that("replace_symbols()", {
+    expect_equal(
+        replace_symbols(
+            what = "before",
+            by = "after",
+            x = "this ~ before"
+        ),
+        "this~after"
+    )
+
+    expect_equal(
+        replace_symbols(
+            what = c("before1", "before2", "before3"),
+            by = c("after1", "after2", "after3"),
+            x = "this ~ before1*before2/before3"
+        ),
+        "this~after1*after2/after3"
+    )
+})

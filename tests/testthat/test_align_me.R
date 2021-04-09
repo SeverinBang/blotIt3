@@ -14,9 +14,9 @@ test_that("align_me() - model parsing", {
             model = "yi / sj",
             error_model = "value * sigmaR",
             distinguish = "one_parameter",
-            scaling = sj ~ name + replicate,
+            scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1
-            ),
+        ),
         "Do not pass distinguish, scaling or error as string."
     )
 
@@ -27,7 +27,7 @@ test_that("align_me() - model parsing", {
             error_model <- "value * sigmaR",
             distinguish <- yi ~ name + time + condition,
             error = sigmaR ~ name + 1
-            ),
+        ),
         "All of model, error_model, distinguish, scaling, error must be set"
     )
 
@@ -36,7 +36,7 @@ test_that("align_me() - model parsing", {
             data = input_data,
             distinguish = NULL,
             error = left ~ right2
-            ),
+        ),
         "All of model, error_model, distinguish, scaling, error must be set."
     )
 
@@ -46,9 +46,9 @@ test_that("align_me() - model parsing", {
             model = "yi / sj",
             error_model = "value * sigmaR",
             distinguish = yi ~ condition,
-            scaling = wrong ~ replicate,
+            scaling = wrong ~ ID,
             error = sigmaR ~ name + 1
-            ),
+        ),
         "Not all paramters are defined in either arguments
          'scaling', 'distinguish' or 'error'"
     )

@@ -106,35 +106,52 @@ split_for_scaling <- function(data,
                               scaling_values,
                               normalize_input,
                               log) {
-    gets_own_scale <- unique(data[, scaling_values])
+    targets <- unique(data$name)
+    has_own_scale <- unique(data[, scaling_values])
 
     if (length(scaling_values) == 1) {
         to_be_scaled <- lapply(
-            seq_len(length(gets_own_scale)),
+            seq_len(length(has_own_scale)),
             function(i) {
                 current_data <- subset(
                     data,
-                    get(scaling_values) == gets_own_scale[i][[1]]
+                    get(scaling_values) == has_own_scale[i][[1]]
                 )
                 return(current_data)
             }
         )
     } else {
         to_be_scaled <- lapply(
-            seq_len(nrow(gets_own_scale)),
+            seq_len(nrow(has_own_scale)),
             function(i) {
                 current_data <- data
                 for (j in seq_along(scaling_values)) {
                     current_data <- subset(
                         current_data,
                         get(scaling_values[j]) ==
-                            gets_own_scale[i, ][scaling_values[j]][[1]]
+                            has_own_scale[i, ][scaling_values[j]][[1]]
                     )
                 }
                 return(current_data)
             }
         )
     }
+    paste_ <- function(...) paste(..., sep = "_")
+
+    identifyers_scaling <- lapply(
+        to_be_scaled,
+        function(i) {
+            Reduce(paste_, i[scaling_values])
+        }
+    )
+    identifyers_distinguish <- lapply(
+        to_be_scaled,
+        function(i) {
+            Reduce(paste_, i[distinguish_values])
+        }
+    )
+    common_times <- Reduce(intersect,lapply(identifyers_distinguish,"[[",1))
+    has_overlapp <-
 
 
 

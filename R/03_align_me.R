@@ -95,9 +95,7 @@ align_me <- function(data,
                      normalize = TRUE,
                      verbose = TRUE,
                      normalize_input = TRUE) {
-
     if (FALSE) {
-
         sim_data_wide_file <- system.file(
             "extdata", "sim_data_wide.csv",
             package = "blotIt3"
@@ -106,7 +104,7 @@ align_me <- function(data,
         model <- "yi / sj"
         error_model <- "value * sigmaR"
         distinguish <- yi ~ name + time + condition
-        scaling <- sj ~ name + replicate
+        scaling <- sj ~ name + ID
         error <- sigmaR ~ name + 1
         input_is_log <- FALSE
         normalize <- TRUE
@@ -199,4 +197,21 @@ align_me <- function(data,
         stop("Not all paramters are defined in either arguments
          'scaling', 'distinguish' or 'error'")
     }
+
+    # Name the respective parameters fixed, latent and error
+    names(parameters)[parameters %in% distinguish_pars] <- "distinguish"
+    names(parameters)[parameters %in% scaling_pars] <- "scaling"
+    names(parameters)[parameters %in% error_pars] <- "error"
+
+    # parse error model by replacing the "value" by the model
+    error_model <- replace_symbols(
+        "value",
+        paste0("(", model, ")"),
+        error_model
+    )
+
+    # Calculating the derivative
+    model_derivertive <- deparse(
+        D(parse(text = model), name = distinguish_pars[1])
+    )
 }

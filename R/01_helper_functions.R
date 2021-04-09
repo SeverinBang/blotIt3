@@ -87,3 +87,48 @@ identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
 
     return(list(effects_values = effects_values, effects_pars = effects_pars))
 }
+
+
+
+# replace_symbol ----------------------------------------------------------
+
+#' Method for replacing parts of a string. Used to paste expresisons for the
+#' (error-) model.
+#'
+#' The formula-formatted input will be parsed by \link{get_symbols} and the
+#' respective output then passed back
+#'
+#' @param what string or vector of strings to be replaced
+#' @param by string or vector of strings that will take the replaced place
+#' @param x string in which \code{what} will be replaced by \code{by}
+#'
+#' @return string, \code{x} with the replaced object.
+#'
+#' @noRd
+#'
+replace_symbols <- function(what, by, x) {
+    x_orig <- x
+    is_not_zero <- which(x != "0")
+    x <- x[is_not_zero]
+    my_names <- names(x)
+    x_parsed <- parse(text = x, keep.source = TRUE)
+    data <- utils::getParseData(x_parsed)
+    by <- rep(by, length.out = length(what))
+    names(by) <- what
+    data$text[data$text %in% what] <- by[data$text[data$text %in% what]]
+    data <- data[data$token != "expr", ]
+    breaks <- c(0, which(diff(data$line1) == 1), length(data$line1))
+    out <- lapply(
+        seq_len((length(breaks) - 1)),
+        function(i) {
+            paste(
+                data$text[seq((breaks[i] + 1), (breaks[i + 1]))],
+                collapse = ""
+            )
+        }
+    )
+    names(out) <- my_names
+    out <- unlist(out)
+    x_orig[is_not_zero] <- out
+    return(x_orig)
+}
