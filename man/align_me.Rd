@@ -6,11 +6,11 @@
 \usage{
 align_me(
   data,
-  model = "yi / sj",
-  errmodel = "value * sigmaR",
-  distinguish = ys ~ name + time + condition,
-  scaling = sj ~ name + replicate,
-  error = sigmaR ~ name + 1,
+  model = NULL,
+  error_model = NULL,
+  distinguish = NULL,
+  scaling = NULL,
+  error = NULL,
   input_is_log = FALSE,
   normalize = TRUE,
   verbose = TRUE,
@@ -29,7 +29,7 @@ sources of variance between data of the same experimental condition
 \item{model}{character defining the model by which the values in
 \code{data} can be described, e.g. "yi/sj"}
 
-\item{errmodel}{character defining a model for the standard
+\item{error_model}{character defining a model for the standard
 deviation of a value, e.g. "sigma0 + value * sigmaR". This model
 can contain parameters, e.g. "sigma0" and "sigmaR", or numeric
 variables from \code{data}, e.g. "value" or "time".}

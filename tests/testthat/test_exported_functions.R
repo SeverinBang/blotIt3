@@ -14,9 +14,31 @@ test_that("split_for_scaling()", {
         data = sim_data_long,
         distinguish_values = c("name", "time", "condition"),
         scaling_values = c("name", "replicate")
-        )
-      ),
+      )
+    ),
     nrow(unique(sim_data_long[c("name", "replicate")]))
+  )
+
+  expect_equal(
+    length(
+      split_for_scaling(
+        data = sim_data_long,
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = "name"
+      )
+    ),
+    nrow(unique(sim_data_long["name"]))
+  )
+
+  expect_equal(
+    length(
+      split_for_scaling(
+        data = sim_data_long,
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = "replicate"
+      )
+    ),
+    nrow(unique(sim_data_long["replicate"]))
   )
 
 })

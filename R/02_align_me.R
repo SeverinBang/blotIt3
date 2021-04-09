@@ -20,7 +20,7 @@
 #' @param model character defining the model by which the values in
 #' \code{data} can be described, e.g. "yi/sj"
 #'
-#' @param errmodel character defining a model for the standard
+#' @param error_model character defining a model for the standard
 #' deviation of a value, e.g. "sigma0 + value * sigmaR". This model
 #' can contain parameters, e.g. "sigma0" and "sigmaR", or numeric
 #' variables from \code{data}, e.g. "value" or "time".
@@ -86,15 +86,41 @@
 #' get it in the right format for \code{align_me()}.
 #' @export
 align_me <- function(data,
-                     model = "yi / sj",
-                     errmodel = "value * sigmaR",
-                     distinguish = ys ~ name + time + condition,
-                     scaling = sj ~ name + replicate,
-                     error = sigmaR ~ name + 1,
+                     model = NULL,
+                     error_model = NULL,
+                     distinguish = NULL,
+                     scaling = NULL,
+                     error = NULL,
                      input_is_log = FALSE,
                      normalize = TRUE,
                      verbose = TRUE,
                      normalize_input = TRUE) {
+
+    if (FALSE) {
+
+        sim_data_wide_file <- system.file(
+            "extdata", "sim_data_wide.csv",
+            package = "blotIt3"
+        )
+        data <- read_wide(sim_data_wide_file, description = seq_len(3))
+        model <- "yi / sj"
+        error_model <- "value * sigmaR"
+        distinguish <- yi ~ name + time + condition
+        scaling <- sj ~ name + replicate
+        error <- sigmaR ~ name + 1
+        input_is_log <- FALSE
+        normalize <- TRUE
+        verbose <- TRUE
+        normalize_input <- TRUE
+    }
+
+    if (is.null(model) | is.null(error_model) | is.null(distinguish) |
+        is.null(scaling) | is.null(error)) {
+        stop(
+            "All of model, error_model, distinguish, scaling, error ",
+            "must be set."
+        )
+    }
 
     ## read distinguishing, scaling and error effects from input
     effects <- identify_effects(
@@ -105,6 +131,11 @@ align_me <- function(data,
 
     scaling_values <- effects$effects_values$scaling_values
     distinguish_values <- effects$effects_values$distinguish_values
+    error_values <- effects$effects_values$error_values
+
+    scaling_pars <- effects$effects_pars$scaling_pars
+    distinguish_pars <- effects$effects_pars$distinguish_pars
+    error_pars <- effects$effects_pars$error_pars
 
     ## prepare data
     data <- as.data.frame(data)
@@ -125,7 +156,7 @@ align_me <- function(data,
         to_be_scaled <- lapply(
             to_be_scaled,
             function(i) {
-                i$value <- i$value/mean(i$value)
+                i$value <- i$value / mean(i$value)
 
                 return(i)
             }
@@ -133,16 +164,39 @@ align_me <- function(data,
     }
 
     ## Get distinguish, scaling and error parameter from model and error model
-    parameters <- get_symbols(c(model, errmodel), exclude = colnames(data))
+    parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
 
     # Include the normalization term as a constraint if saied so in the function
     # call
     if (normalize) {
-        constraint <- paste("1e3*(mean(", fixedpars[1], ") - 1)")
-        cstrength <- 1000
+        constraint <- paste("1e3 * (mean(", distinguish_pars[1], ") - 1)")
+        c_strength <- 1000
     } else {
         constraint <- "0"
-        cstrength <- 0
+        c_strength <- 0
     }
 
+    # Retrieve the covariates as the "remaining" model parameters, when fixed,
+    # latent and errorparameters are excluded
+    covariates <- union(
+        get_symbols(
+            model,
+            exclude = c(distinguish_pars, scaling_pars, error_pars)
+        ),
+        get_symbols(
+            error_model,
+            exclude = c(distinguish_pars, scaling_pars, error_pars)
+        )
+    )
+    # cat("Covariates:", paste(covariates, sep = ", "), "\n")
+
+    # Check if parameters from (error-) model and passed expressions coincide
+    if (
+        length(
+            setdiff(c(distinguish_pars, scaling_pars, error_pars), parameters)
+        ) > 0
+    ) {
+        stop("Not all paramters are defined in either arguments
+         'scaling', 'distinguish' or 'error'")
+    }
 }

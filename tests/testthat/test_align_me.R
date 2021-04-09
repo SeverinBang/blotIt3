@@ -9,17 +9,47 @@ test_that("align_me() - model parsing", {
     input_data <- read_wide(sim_data_wide_file, description = seq_len(3))
 
     expect_error(
-        align_me(data = input_data, distinguish = "one_parameter"),
+        align_me(
+            data = input_data,
+            model = "yi / sj",
+            error_model = "value * sigmaR",
+            distinguish = "one_parameter",
+            scaling = sj ~ name + replicate,
+            error = sigmaR ~ name + 1
+            ),
         "Do not pass distinguish, scaling or error as string."
     )
 
     expect_error(
-        align_me(data = input_data, distinguish = left ~ right, scaling = NULL),
-        "Left and right-hand side of formula 'scaling' is needed"
+        align_me(
+            data = input_data,
+            model = "yi / sj",
+            error_model <- "value * sigmaR",
+            distinguish <- yi ~ name + time + condition,
+            error = sigmaR ~ name + 1
+            ),
+        "All of model, error_model, distinguish, scaling, error must be set"
     )
 
     expect_error(
-        align_me(data = input_data, distinguish = NULL, error = left ~ right2),
-        "Left and right-hand side of formula 'distinguish' is needed"
+        align_me(
+            data = input_data,
+            distinguish = NULL,
+            error = left ~ right2
+            ),
+        "All of model, error_model, distinguish, scaling, error must be set."
+    )
+
+    expect_error(
+        align_me(
+            data = input_data,
+            model = "yi / sj",
+            error_model = "value * sigmaR",
+            distinguish = yi ~ condition,
+            scaling = wrong ~ replicate,
+            error = sigmaR ~ name + 1
+            ),
+        "Not all paramters are defined in either arguments
+         'scaling', 'distinguish' or 'error'"
     )
 })

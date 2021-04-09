@@ -106,23 +106,37 @@ split_for_scaling <- function(data,
                               scaling_values,
                               normalize_input,
                               log) {
-
     gets_own_scale <- unique(data[, scaling_values])
 
-    to_be_scaled <- lapply(
-        seq_len(nrow(gets_own_scale)),
-        function(i) {
-            current_data <- data
-            for (j in seq_along(scaling_values)) {
+    if (length(scaling_values) == 1) {
+        to_be_scaled <- lapply(
+            seq_len(length(gets_own_scale)),
+            function(i) {
                 current_data <- subset(
-                    current_data,
-                    get(scaling_values[j]) ==
-                        gets_own_scale[i, ][scaling_values[j]][[1]]
+                    data,
+                    get(scaling_values) == gets_own_scale[i][[1]]
                 )
+                return(current_data)
             }
-            return(current_data)
-        }
-    )
+        )
+    } else {
+        to_be_scaled <- lapply(
+            seq_len(nrow(gets_own_scale)),
+            function(i) {
+                current_data <- data
+                for (j in seq_along(scaling_values)) {
+                    current_data <- subset(
+                        current_data,
+                        get(scaling_values[j]) ==
+                            gets_own_scale[i, ][scaling_values[j]][[1]]
+                    )
+                }
+                return(current_data)
+            }
+        )
+    }
+
+
 
     return(to_be_scaled)
 }
