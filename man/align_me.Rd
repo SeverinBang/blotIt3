@@ -8,13 +8,12 @@ align_me(
   data,
   model = "yi / sj",
   errmodel = "value * sigmaR",
-  fixed = ys ~ condition,
-  scaling = sj ~ replicate,
-  error = sigmaR ~ 1,
-  log = TRUE,
+  distinguish = ys ~ name + time + condition,
+  scaling = sj ~ name + replicate,
+  error = sigmaR ~ name + 1,
+  input_is_log = FALSE,
   normalize = TRUE,
-  reduce = FALSE,
-  verbose = FALSE,
+  verbose = TRUE,
   normalize_input = TRUE
 )
 }
@@ -35,7 +34,7 @@ deviation of a value, e.g. "sigma0 + value * sigmaR". This model
 can contain parameters, e.g. "sigma0" and "sigmaR", or numeric
 variables from \code{data}, e.g. "value" or "time".}
 
-\item{fixed}{two-sided formula of the form
+\item{distinguish}{two-sided formula of the form
 \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
 parameters contained in \code{model}, e.g. "yi", and "name1, ..."
 refers to variables in \code{data}, e.g. "condition".
@@ -49,20 +48,19 @@ refers to variables in \code{data}, e.g. "Experiment".}
 
 \item{error}{two-sided formula of the form
 \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
-parameter containd in \code{error}, e.g. "sigma0" and "sigmaR", and
+parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 "name1, ..." refers to variables in \code{data}. If the same values
 of "par1, ..." should be assumed for all data, "name1" can be "1".}
 
-\item{log}{logical indicating whether all parameters are fitted on
-log-scale.}
+\item{input_is_log}{logical indicating whether input data is on log scale.}
 
-\item{normalize}{logical indicating whether the fixed effect
+\item{normalize}{logical indicating whether the distinguishing effect
 parameter should be normalized to unit mean.}
 
 \item{verbose}{logical, print out information about each fit}
 
 \item{normalize_input}{logical, if TRUE the input will be normalized before
-scaling. see \link{splitData}.}
+scaling. see \code{split_data}.}
 }
 \value{
 Object of class \code{aligned}, i.e. a data frame of the
@@ -82,7 +80,7 @@ alignment result containing an attribute "outputs":
 \item{original}{the original data}
 \item{parameter}{original data augmented by parameter columns.
                  Parameters in each row correspond to the levels of
-                 fixed, latent or error as passed to alignME().
+                 fixed, latent or error as passed to \code{align_me()}.
                  Used for initialization or parameter values when
                  refitting with modified model.}
 }
@@ -113,6 +111,6 @@ assumed for all data points.
 
 }
 \seealso{
-\link{read.wide} to read data in a wide column format and
-get it in the right format for \code{alignME()}.
+\link{read_wide} to read data in a wide column format and
+get it in the right format for \code{align_me()}.
 }

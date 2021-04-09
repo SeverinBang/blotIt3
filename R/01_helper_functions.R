@@ -30,7 +30,8 @@ get_symbols <- function(char, exclude = NULL) {
 
 
 
-# identify_parameters() ---------------------------------------------------
+
+# identify_effects() ------------------------------------------------------
 
 #' Method to identify the names and values of passed todistinguish, scaling and
 #' error parameters
@@ -46,10 +47,7 @@ get_symbols <- function(char, exclude = NULL) {
 #'
 #' @noRd
 
-identify_parameters <- function(
-    distinguish = NULL, scaling = NULL, error = NULL
-    ) {
-
+identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
     if (length(as.character(distinguish)) == 1 |
         length(as.character(scaling)) == 1 | length(as.character(error)) == 1) {
         stop("Do not pass distinguish, scaling or error as string.")
@@ -67,12 +65,25 @@ identify_parameters <- function(
     }
 
     # Get distinguish scale and error parameters
-    distinguish <- get_symbols(as.character(distinguish)[3])
-    scaling <- get_symbols(as.character(scaling)[3])
-    error <- get_symbols(as.character(error)[3])
+    distinguish_values <- get_symbols(as.character(distinguish)[3])
+    scaling_values <- get_symbols(as.character(scaling)[3])
+    error_values <- get_symbols(as.character(error)[3])
 
     # Determine to which class parameters belong
     distinguish_pars <- get_symbols(as.character(distinguish)[2])
     scaling_pars <- get_symbols(as.character(scaling)[2])
     error_pars <- get_symbols(as.character(error)[2])
+
+    effects_values <- list(
+        distinguish_values = distinguish_values,
+        scaling_values = scaling_values,
+        error_values = error_values
+    )
+    effects_pars <- list(
+        distinguish_pars = distinguish_pars,
+        scaling_pars = scaling_pars,
+        error_pars = error_pars
+    )
+
+    return(list(effects_values = effects_values, effects_pars = effects_pars))
 }

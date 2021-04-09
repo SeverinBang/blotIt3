@@ -1,3 +1,5 @@
+# read_wide() -------------------------------------------------------------
+
 #' Import measurement data
 #'
 #' Data from a given wide style csv-file is imported. While importing, the data
@@ -76,4 +78,51 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
     colnames(new_data)[n_time] <- "time"
 
     return(new_data)
+}
+
+
+
+# split_for_scaling()  ----------------------------------------------------
+
+
+#' split_data
+#'
+#' Split data in independent blocks according to distinguish and scaling
+#' variables as being defined for \link{align_me}. Each block will be given an
+#' individual scaling factor.
+#'
+#' @param data data frame with columns "name", "time", "value" and others
+#' @param distinguish two-sided formula, see \link{align_me}
+#' @param scaling two-sided formula, see \link{align_me}
+#' @param normalize_input logical, if set to TRUE, the input data will be
+#' normalized by dividing all entries belonging to one scaling factor by their
+#'  respective mean. This prevents convergence failure on some hardware when the
+#'  data for different scaling effects differ by to many orders of magnitude.
+#' @return list of data frames
+#'
+#' @noRd
+split_for_scaling <- function(data,
+                              distinguish_values,
+                              scaling_values,
+                              normalize_input,
+                              log) {
+
+    gets_own_scale <- unique(data[, scaling_values])
+
+    to_be_scaled <- lapply(
+        seq_len(nrow(gets_own_scale)),
+        function(i) {
+            current_data <- data
+            for (j in seq_along(scaling_values)) {
+                current_data <- subset(
+                    current_data,
+                    get(scaling_values[j]) ==
+                        gets_own_scale[i, ][scaling_values[j]][[1]]
+                )
+            }
+            return(current_data)
+        }
+    )
+
+    return(to_be_scaled)
 }

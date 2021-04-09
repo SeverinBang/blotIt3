@@ -2,8 +2,4 @@
 
 export(align_me)
 export(read_wide)
-import(trust)
-importFrom(rootSolve,multiroot)
-importFrom(stats,D)
-importFrom(utils,getParseData)
 importFrom(utils,read.csv)

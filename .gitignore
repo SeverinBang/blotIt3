@@ -33,4 +33,4 @@
  .seed
  .settings
  .tm_properties
-#test
+tests/my_test/

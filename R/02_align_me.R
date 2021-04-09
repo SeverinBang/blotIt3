@@ -25,7 +25,7 @@
 #' can contain parameters, e.g. "sigma0" and "sigmaR", or numeric
 #' variables from \code{data}, e.g. "value" or "time".
 #'
-#' @param fixed two-sided formula of the form
+#' @param distinguish two-sided formula of the form
 #' \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
 #' parameters contained in \code{model}, e.g. "yi", and "name1, ..."
 #' refers to variables in \code{data}, e.g. "condition".
@@ -38,16 +38,15 @@
 #' refers to variables in \code{data}, e.g. "Experiment".
 #' @param error two-sided formula of the form
 #' \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
-#' parameter containd in \code{error}, e.g. "sigma0" and "sigmaR", and
+#' parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 #' "name1, ..." refers to variables in \code{data}. If the same values
 #' of "par1, ..." should be assumed for all data, "name1" can be "1".
-#' @param log logical indicating whether all parameters are fitted on
-#' log-scale.
-#' @param normalize logical indicating whether the fixed effect
+#' @param input_is_log logical indicating whether input data is on log scale.
+#' @param normalize logical indicating whether the distinguishing effect
 #' parameter should be normalized to unit mean.
 #' @param verbose logical, print out information about each fit
 #' @param normalize_input logical, if TRUE the input will be normalized before
-#' scaling. see \link{splitData}.
+#' scaling. see \code{split_data}.
 #' @details Alignment of time-course data is achieved by an alignment
 #' model which explains the observed data by a function mixing
 #' fixed effects, usually parameters reflecting the "underlying"
@@ -76,59 +75,74 @@
 #' \item{original}{the original data}
 #' \item{parameter}{original data augmented by parameter columns.
 #'                  Parameters in each row correspond to the levels of
-#'                  fixed, latent or error as passed to alignME().
+#'                  fixed, latent or error as passed to \code{align_me()}.
 #'                  Used for initialization or parameter values when
 #'                  refitting with modified model.}
 #' }
 #'
 #' The estimated parameters are returned by the attribute "parameters".
 #' @example inst/examples/example_align_me.R
-#' @seealso \link{read.wide} to read data in a wide column format and
-#' get it in the right format for \code{alignME()}.
+#' @seealso \link{read_wide} to read data in a wide column format and
+#' get it in the right format for \code{align_me()}.
 #' @export
-#' @import trust
-#' @importFrom rootSolve multiroot
-#' @importFrom stats D
-#' @importFrom utils getParseData
-#'
 align_me <- function(data,
                      model = "yi / sj",
                      errmodel = "value * sigmaR",
-                     fixed = ys ~ condition,
-                     scaling = sj ~ replicate,
-                     error = sigmaR ~ 1,
-                     log = TRUE,
+                     distinguish = ys ~ name + time + condition,
+                     scaling = sj ~ name + replicate,
+                     error = sigmaR ~ name + 1,
+                     input_is_log = FALSE,
                      normalize = TRUE,
-                     reduce = FALSE,
-                     verbose = FALSE,
+                     verbose = TRUE,
                      normalize_input = TRUE) {
+
+    ## read distinguishing, scaling and error effects from input
+    effects <- identify_effects(
+        distinguish = distinguish,
+        scaling = scaling,
+        error = error
+    )
+
+    scaling_values <- effects$effects_values$scaling_values
+    distinguish_values <- effects$effects_values$distinguish_values
+
+    ## prepare data
     data <- as.data.frame(data)
 
+    targets <- unique(data$name)
 
-    # Stop if formulas have the wrong specification
-    if (length(as.character(fixed)) < 3) {
-        stop("Left and right-hand side of formula 'fixed' is needed")
+    to_be_scaled <- split_for_scaling(
+        data,
+        distinguish_values,
+        scaling_values,
+        normalize_input,
+        input_is_log
+    )
+
+    ## normalize input per scaling group to avoid failure of scaling. Only for
+    ## linear data.
+    if (normalize_input & !input_is_log) {
+        to_be_scaled <- lapply(
+            to_be_scaled,
+            function(i) {
+                i$value <- i$value/mean(i$value)
+
+                return(i)
+            }
+        )
     }
-    if (length(as.character(scaling)) < 3) {
-        stop("Left and right-hand side of formula 'scaling' is needed")
+
+    ## Get distinguish, scaling and error parameter from model and error model
+    parameters <- get_symbols(c(model, errmodel), exclude = colnames(data))
+
+    # Include the normalization term as a constraint if saied so in the function
+    # call
+    if (normalize) {
+        constraint <- paste("1e3*(mean(", fixedpars[1], ") - 1)")
+        cstrength <- 1000
+    } else {
+        constraint <- "0"
+        cstrength <- 0
     }
-    if (length(as.character(error)) < 3) {
-        stop("Left and right-hand side of formula 'error' is needed")
-    }
 
-    # Get fixed scale and error parameters
-    fixed <- get_symbols(as.character(fixed)[3])
-    scaling <- get_symbols(as.character(scaling)[3])
-    error <- get_symbols(as.character(error)[3])
-
-    # # Add intercepts
-    # if (attr(terms(fixed), "intercept") & length(fix) == 2) fix <- c(fix, "1")
-    # if (attr(terms(latent), "intercept") & length(ran) == 1) ran <- c(ran, "1")
-    # if (attr(terms(error), "intercept") & length(err) == 1) err <- c(err, "1")
-
-
-    # Determine to which class parameters belong
-    fixed_pars <- get_symbols(as.character(fixed)[2])
-    scaling_pars <- get_symbols(as.character(scaling)[2])
-    error_pars <- get_symbols(as.character(error)[2])
 }
