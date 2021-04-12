@@ -37,42 +37,62 @@ test_that("read_wide works properly", {
 # split_for_scaling() -----------------------------------------------------
 
 test_that("split_for_scaling()", {
-    sim_data_wide_file <- system.file(
-        "extdata", "sim_data_wide.csv",
-        package = "blotIt3"
-    )
-    sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
+  sim_data_wide_file <- system.file(
+    "extdata", "sim_data_wide.csv",
+    package = "blotIt3"
+  )
+  sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
 
-    expect_equal(
-        length(
-            split_for_scaling(
-                data = sim_data_long,
-                distinguish_values = c("name", "time", "condition"),
-                scaling_values = c("name", "ID")
-            )
-        ),
-        nrow(unique(sim_data_long[c("name", "ID")]))
-    )
+  expect_equal(
+    length(
+      split_for_scaling(
+        data = sim_data_long,
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = c("name", "ID"),
+        input_scale = "linear",
+        normalize_input = TRUE
+      )
+    ),
+    14
+  )
 
-    expect_equal(
-        length(
-            split_for_scaling(
-                data = sim_data_long,
-                distinguish_values = c("name", "time", "condition"),
-                scaling_values = "name"
-            )
-        ),
-        nrow(unique(sim_data_long["name"]))
-    )
+  expect_equal(
+    length(
+      split_for_scaling(
+        data = sim_data_long,
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = "name",
+        input_scale = "linear",
+        normalize_input = TRUE
+      )
+    ),
+    nrow(unique(sim_data_long["name"]))
+  )
 
-    expect_equal(
-        length(
-            split_for_scaling(
-                data = sim_data_long,
-                distinguish_values = c("name", "time", "condition"),
-                scaling_values = "ID"
-            )
-        ),
-        nrow(unique(sim_data_long["ID"]))
+  expect_equal(
+    length(
+      split_for_scaling(
+        data = sim_data_long,
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = "ID",
+        input_scale = "linear",
+        normalize_input = TRUE
+      )
+    ),
+    1
+  )
+
+  expect_warning(
+    split_for_scaling(
+      data = sim_data_long,
+      distinguish_values = c("name", "time", "condition"),
+      scaling_values = c("name", "ID"),
+      input_scale = "log2",
+      normalize_input = TRUE
+    ),
+    paste0(
+      "'normalize_input == TRUE' is only competable with ",
+      "'input_scale == linear'. 'normalize_input' was ignored."
     )
+  )
 })

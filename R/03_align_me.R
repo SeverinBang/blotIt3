@@ -41,7 +41,8 @@
 #' parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 #' "name1, ..." refers to variables in \code{data}. If the same values
 #' of "par1, ..." should be assumed for all data, "name1" can be "1".
-#' @param input_is_log logical indicating whether input data is on log scale.
+#' @param input_scale character, describes how the input is scaled. Must be one
+#' of \code{c("linear", "log", "log2", "log10")}.
 #' @param normalize logical indicating whether the distinguishing effect
 #' parameter should be normalized to unit mean.
 #' @param verbose logical, print out information about each fit
@@ -91,127 +92,121 @@ align_me <- function(data,
                      distinguish = NULL,
                      scaling = NULL,
                      error = NULL,
-                     input_is_log = FALSE,
+                     input_scale = "linear",
                      normalize = TRUE,
                      verbose = TRUE,
                      normalize_input = TRUE) {
-    if (FALSE) {
-        sim_data_wide_file <- system.file(
-            "extdata", "sim_data_wide.csv",
-            package = "blotIt3"
-        )
-        data <- read_wide(sim_data_wide_file, description = seq_len(3))
-        model <- "yi / sj"
-        error_model <- "value * sigmaR"
-        distinguish <- yi ~ name + time + condition
-        scaling <- sj ~ name + ID
-        error <- sigmaR ~ name + 1
-        input_is_log <- FALSE
-        normalize <- TRUE
-        verbose <- TRUE
-        normalize_input <- TRUE
-    }
-
-    if (is.null(model) | is.null(error_model) | is.null(distinguish) |
-        is.null(scaling) | is.null(error)) {
-        stop(
-            "All of model, error_model, distinguish, scaling, error ",
-            "must be set."
-        )
-    }
-
-    ## read distinguishing, scaling and error effects from input
-    effects <- identify_effects(
-        distinguish = distinguish,
-        scaling = scaling,
-        error = error
+  if (FALSE) {
+    sim_data_wide_file <- system.file(
+      "extdata", "sim_data_wide.csv",
+      package = "blotIt3"
     )
+    data <- read_wide(sim_data_wide_file, description = seq_len(3))
+    model <- "yi / sj"
+    error_model <- "value * sigmaR"
+    distinguish <- yi ~ name + time + condition
+    scaling <- sj ~ name + ID
+    error <- sigmaR ~ name + 1
+    input_scale <- "linear"
+    normalize <- TRUE
+    verbose <- TRUE
+    normalize_input <- TRUE
+  }
 
-    scaling_values <- effects$effects_values$scaling_values
-    distinguish_values <- effects$effects_values$distinguish_values
-    error_values <- effects$effects_values$error_values
-
-    scaling_pars <- effects$effects_pars$scaling_pars
-    distinguish_pars <- effects$effects_pars$distinguish_pars
-    error_pars <- effects$effects_pars$error_pars
-
-    ## prepare data
-    data <- as.data.frame(data)
-
-    targets <- unique(data$name)
-
-    to_be_scaled <- split_for_scaling(
-        data,
-        distinguish_values,
-        scaling_values,
-        normalize_input,
-        input_is_log
+  if (!(as.character(input_scale) %in% c("linear", "log", "log2", "log10"))) {
+    stop(
+      "'input_scale' must be 'linear', 'log', 'log2' or 'log10'"
     )
+  }
 
-    ## normalize input per scaling group to avoid failure of scaling. Only for
-    ## linear data.
-    if (normalize_input & !input_is_log) {
-        to_be_scaled <- lapply(
-            to_be_scaled,
-            function(i) {
-                i$value <- i$value / mean(i$value)
-
-                return(i)
-            }
-        )
-    }
-
-    ## Get distinguish, scaling and error parameter from model and error model
-    parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
-
-    # Include the normalization term as a constraint if saied so in the function
-    # call
-    if (normalize) {
-        constraint <- paste("1e3 * (mean(", distinguish_pars[1], ") - 1)")
-        c_strength <- 1000
-    } else {
-        constraint <- "0"
-        c_strength <- 0
-    }
-
-    # Retrieve the covariates as the "remaining" model parameters, when fixed,
-    # latent and errorparameters are excluded
-    covariates <- union(
-        get_symbols(
-            model,
-            exclude = c(distinguish_pars, scaling_pars, error_pars)
-        ),
-        get_symbols(
-            error_model,
-            exclude = c(distinguish_pars, scaling_pars, error_pars)
-        )
+  if (is.null(model) | is.null(error_model) | is.null(distinguish) |
+    is.null(scaling) | is.null(error)) {
+    stop(
+      "All of model, error_model, distinguish, scaling, error ",
+      "must be set."
     )
-    # cat("Covariates:", paste(covariates, sep = ", "), "\n")
+  }
 
-    # Check if parameters from (error-) model and passed expressions coincide
-    if (
-        length(
-            setdiff(c(distinguish_pars, scaling_pars, error_pars), parameters)
-        ) > 0
-    ) {
-        stop("Not all paramters are defined in either arguments
+  ## read distinguishing, scaling and error effects from input
+  effects <- identify_effects(
+    distinguish = distinguish,
+    scaling = scaling,
+    error = error
+  )
+
+  scaling_values <- effects$effects_values$scaling_values
+  distinguish_values <- effects$effects_values$distinguish_values
+  error_values <- effects$effects_values$error_values
+
+  scaling_pars <- effects$effects_pars$scaling_pars
+  distinguish_pars <- effects$effects_pars$distinguish_pars
+  error_pars <- effects$effects_pars$error_pars
+
+  ## prepare data
+  data <- as.data.frame(data)
+
+  targets <- unique(data$name)
+
+  to_be_scaled <- split_for_scaling(
+    data,
+    distinguish_values,
+    scaling_values,
+    normalize_input,
+    input_scale
+  )
+
+
+  ## Get distinguish, scaling and error parameter from model and error model
+  parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
+
+  # Include the normalization term as a constraint if saied so in the function
+  # call
+  if (normalize) {
+    constraint <- paste("1e3 * (mean(", distinguish_pars[1], ") - 1)")
+    c_strength <- 1000
+  } else {
+    constraint <- "0"
+    c_strength <- 0
+  }
+
+  # Retrieve the covariates as the "remaining" model parameters, when fixed,
+  # latent and errorparameters are excluded
+  covariates <- union(
+    get_symbols(
+      model,
+      exclude = c(distinguish_pars, scaling_pars, error_pars)
+    ),
+    get_symbols(
+      error_model,
+      exclude = c(distinguish_pars, scaling_pars, error_pars)
+    )
+  )
+  cat("Covariates:", paste(covariates, sep = ", "), "\n")
+
+  # Check if parameters from (error-) model and passed expressions coincide
+  if (
+    length(
+      setdiff(c(distinguish_pars, scaling_pars, error_pars), parameters)
+    ) > 0
+  ) {
+    stop("Not all paramters are defined in either arguments
          'scaling', 'distinguish' or 'error'")
-    }
+  }
 
-    # Name the respective parameters fixed, latent and error
-    names(parameters)[parameters %in% distinguish_pars] <- "distinguish"
-    names(parameters)[parameters %in% scaling_pars] <- "scaling"
-    names(parameters)[parameters %in% error_pars] <- "error"
+  # Name the respective parameters fixed, latent and error
+  names(parameters)[parameters %in% distinguish_pars] <- "distinguish"
+  names(parameters)[parameters %in% scaling_pars] <- "scaling"
+  names(parameters)[parameters %in% error_pars] <- "error"
 
-    # parse error model by replacing the "value" by the model
-    error_model <- replace_symbols(
-        "value",
-        paste0("(", model, ")"),
-        error_model
-    )
+  # parse error model by replacing the "value" by the model
+  error_model <- replace_symbols(
+    "value",
+    paste0("(", model, ")"),
+    error_model
+  )
 
-    # Calculating the derivative
-    model_derivertive <- deparse(
-        D(parse(text = model), name = distinguish_pars[1])
-    )
+  # Calculating the derivative
+  model_derivertive <- deparse(
+    D(parse(text = model), name = distinguish_pars[1])
+  )
 }

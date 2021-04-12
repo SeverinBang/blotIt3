@@ -22,62 +22,62 @@
 #' @examples
 #' ## Import example data set
 #' sim_data_wide_file <- system.file(
-#'     "extdata", "sim_data_wide.csv",
-#'     package = "blotIt3"
+#'   "extdata", "sim_data_wide.csv",
+#'   package = "blotIt3"
 #' )
 #' read_wide(sim_data_wide_file, description = seq_len(3))
 read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
-    my_data <- read.csv(file, header = header, ...)
-    all_names <- colnames(my_data)
+  my_data <- read.csv(file, header = header, ...)
+  all_names <- colnames(my_data)
 
-    if (is.null(description)) {
-        stop("Specify columns containing descriptions.")
-    }
-    if (is.character(description)) {
-        n_description <- which(colnames(my_data) %in% description)
-    } else {
-        n_description <- description
-    }
-    ## Check the index of the "time" column
-    if (is.character(time)) {
-        n_time <- which(colnames(my_data) == time)
-    } else {
-        n_time <- time
-    }
+  if (is.null(description)) {
+    stop("Specify columns containing descriptions.")
+  }
+  if (is.character(description)) {
+    n_description <- which(colnames(my_data) %in% description)
+  } else {
+    n_description <- description
+  }
+  ## Check the index of the "time" column
+  if (is.character(time)) {
+    n_time <- which(colnames(my_data) == time)
+  } else {
+    n_time <- time
+  }
 
-    ## Check availability of description and time
-    if (length(n_description) < length(description)) {
-        warning(
-            "Not all columns proposed by argument 'description' are available",
-            " in file.\nTaking the available ones."
-        )
-    }
-
-    if (length(n_time) == 0) {
-        stop(
-            "File did not contain a time column as proposed by 'time' argument."
-        )
-    }
-
-    # Distinguish description data from measurement data
-    description_entries <- my_data[, n_description]
-    rest_long <- unlist(my_data[, -n_description])
-
-    # Create output data frame
-    new_data <- data.frame(
-        description_entries,
-        name = rep(all_names[-n_description], each = dim(my_data)[1]),
-        value = rest_long
+  ## Check availability of description and time
+  if (length(n_description) < length(description)) {
+    warning(
+      "Not all columns proposed by argument 'description' are available",
+      " in file.\nTaking the available ones."
     )
+  }
 
-    # Remove missing items
-    new_data <- new_data[!is.nan(new_data$value), ]
-    new_data <- new_data[!is.na(new_data$value), ]
+  if (length(n_time) == 0) {
+    stop(
+      "File did not contain a time column as proposed by 'time' argument."
+    )
+  }
+
+  # Distinguish description data from measurement data
+  description_entries <- my_data[, n_description]
+  rest_long <- unlist(my_data[, -n_description])
+
+  # Create output data frame
+  new_data <- data.frame(
+    description_entries,
+    name = rep(all_names[-n_description], each = dim(my_data)[1]),
+    value = rest_long
+  )
+
+  # Remove missing items
+  new_data <- new_data[!is.nan(new_data$value), ]
+  new_data <- new_data[!is.na(new_data$value), ]
 
 
-    colnames(new_data)[n_time] <- "time"
+  colnames(new_data)[n_time] <- "time"
 
-    return(new_data)
+  return(new_data)
 }
 
 
@@ -105,55 +105,66 @@ split_for_scaling <- function(data,
                               distinguish_values,
                               scaling_values,
                               normalize_input,
-                              log) {
-    targets <- unique(data$name)
-    has_own_scale <- unique(data[, scaling_values])
+                              input_scale) {
+  if (!"1" %in% colnames(data)) {
+    data["1"] <- 1
+    intercept <- FALSE
+  } else {
+    intercept <- TRUE
+  }
 
-    if (length(scaling_values) == 1) {
-        to_be_scaled <- lapply(
-            seq_len(length(has_own_scale)),
-            function(i) {
-                current_data <- subset(
-                    data,
-                    get(scaling_values) == has_own_scale[i][[1]]
-                )
-                return(current_data)
-            }
-        )
-    } else {
-        to_be_scaled <- lapply(
-            seq_len(nrow(has_own_scale)),
-            function(i) {
-                current_data <- data
-                for (j in seq_along(scaling_values)) {
-                    current_data <- subset(
-                        current_data,
-                        get(scaling_values[j]) ==
-                            has_own_scale[i, ][scaling_values[j]][[1]]
-                    )
-                }
-                return(current_data)
-            }
-        )
+  # Construnct strings containing the values of the respective effects
+  scaling_strings <- Reduce(paste_, data[scaling_values])
+  distinguish_strings <- Reduce(paste_, data[distinguish_values])
+
+  scaling_strings_unique <- unique(scaling_strings)
+  distinguish_strings_unique <- unique(distinguish_strings)
+
+  # Initialize matrix
+  block_matrix <- matrix(
+    0,
+    ncol = length(scaling_strings_unique),
+    nrow = length(distinguish_strings_unique)
+  )
+
+  # For every datapoint set the entry in the matrix to 1, corresponding to the
+  # index in the respective unique lists of fixed (row) and specific (col)
+  for (i in seq_len(nrow(data))) {
+    myrow <- which(distinguish_strings_unique == distinguish_strings[i])
+    mycol <- which(scaling_strings_unique == scaling_strings[i])
+    block_matrix[myrow, mycol] <- 1
+  }
+
+  # compile list of scalings
+  list_of_scalings <- analyze_blocks(block_matrix)
+
+  # Remove the "1"-column added above
+  if (!intercept) {
+    data <- data[, -which(colnames(data) == "1")]
+  }
+
+  # Compile the list
+  list_out <- lapply(
+    list_of_scalings,
+    function(l) {
+      data[distinguish_strings %in% distinguish_strings_unique[l], ]
     }
-    paste_ <- function(...) paste(..., sep = "_")
+  )
 
-    identifyers_scaling <- lapply(
-        to_be_scaled,
-        function(i) {
-            Reduce(paste_, i[scaling_values])
-        }
-    )
-    identifyers_distinguish <- lapply(
-        to_be_scaled,
-        function(i) {
-            Reduce(paste_, i[distinguish_values])
-        }
-    )
-    common_times <- Reduce(intersect,lapply(identifyers_distinguish,"[[",1))
-    has_overlapp <-
+  # normalize the data
+  if (normalize_input) {
+    if (input_scale == "linear") {
+      for (i in seq_len(length(list_out))) {
+        list_out[[i]]$value <- list_out[[i]]$value /
+          exp(mean(log(list_out[[i]]$value)))
+      }
+    } else {
+      warning(
+        "'normalize_input == TRUE' is only competable with ",
+        "'input_scale == linear'. 'normalize_input' was ignored."
+      )
+    }
+  }
 
-
-
-    return(to_be_scaled)
+  return(list_out)
 }

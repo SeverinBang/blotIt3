@@ -11,7 +11,7 @@ align_me(
   distinguish = NULL,
   scaling = NULL,
   error = NULL,
-  input_is_log = FALSE,
+  input_scale = "linear",
   normalize = TRUE,
   verbose = TRUE,
   normalize_input = TRUE
@@ -52,7 +52,8 @@ parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 "name1, ..." refers to variables in \code{data}. If the same values
 of "par1, ..." should be assumed for all data, "name1" can be "1".}
 
-\item{input_is_log}{logical indicating whether input data is on log scale.}
+\item{input_scale}{character, describes how the input is scaled. Must be one
+of \code{c("linear", "log", "log2", "log10")}.}
 
 \item{normalize}{logical indicating whether the distinguishing effect
 parameter should be normalized to unit mean.}
