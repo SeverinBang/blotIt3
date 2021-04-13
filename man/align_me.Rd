@@ -13,6 +13,7 @@ align_me(
   error = NULL,
   input_scale = "linear",
   normalize = TRUE,
+  average_techn_rep = FALSE,
   verbose = FALSE,
   normalize_input = TRUE
 )
@@ -58,6 +59,9 @@ of \code{c("linear", "log", "log2", "log10")}.}
 \item{normalize}{logical indicating whether the distinguishing effect
 parameter should be normalized to unit mean.}
 
+\item{average_techn_rep}{logical, indicates if the technical replicates
+should be averaged}
+
 \item{verbose}{logical, print out information about each fit}
 
 \item{normalize_input}{logical, if TRUE the input will be normalized before
@@ -75,7 +79,7 @@ alignment result containing an attribute "outputs":
               the first parameter in \code{fixed}, e.g. "ys".
               Sigma values are computed by error propagation
               from the inverse model equation.}
-\item{aligned}{the reduced data with the fixed effects and their
+\item{aligned}{the average_techn_repd data with the fixed effects and their
                uncertainty, only. The result of the alignment
                algorithm.}
 \item{original}{the original data}

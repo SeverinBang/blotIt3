@@ -45,6 +45,10 @@
 #' of \code{c("linear", "log", "log2", "log10")}.
 #' @param normalize logical indicating whether the distinguishing effect
 #' parameter should be normalized to unit mean.
+#'
+#' @param average_techn_rep logical, indicates if the technical replicates
+#' should be averaged
+#'
 #' @param verbose logical, print out information about each fit
 #' @param normalize_input logical, if TRUE the input will be normalized before
 #' scaling. see \code{split_data}.
@@ -70,7 +74,7 @@
 #'               the first parameter in \code{fixed}, e.g. "ys".
 #'               Sigma values are computed by error propagation
 #'               from the inverse model equation.}
-#' \item{aligned}{the reduced data with the fixed effects and their
+#' \item{aligned}{the average_techn_repd data with the fixed effects and their
 #'                uncertainty, only. The result of the alignment
 #'                algorithm.}
 #' \item{original}{the original data}
@@ -94,6 +98,7 @@ align_me <- function(data,
                      error = NULL,
                      input_scale = "linear",
                      normalize = TRUE,
+                     average_techn_rep = FALSE,
                      verbose = FALSE,
                      normalize_input = TRUE) {
     if (FALSE) {
@@ -109,6 +114,7 @@ align_me <- function(data,
         error <- sigmaR ~ name + 1
         input_scale <- "linear"
         normalize <- TRUE
+        average_techn_rep <- TRUE
         verbose <- TRUE
         normalize_input <- TRUE
     }

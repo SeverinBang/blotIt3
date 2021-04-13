@@ -271,3 +271,242 @@ input_check <- function(data = NULL,
     return_msg <- "All input checks passed."
     return(return_msg)
 }
+
+
+
+# scale_target() ----------------------------------------------------------
+
+#' Scaling function applied to the current dataset
+#'
+#' Heart of the package. The passed set is assumed to belong to one scale. The
+#' respective scaling factors are calculated by optimizing
+#' \link{objective_function}.
+#'
+#' @param current_data current data set, belongs to one scale.
+#' @param scaling_values names of the columns defined as scaling effects
+#' @param distinguish_values names of columns defined as destinguishable effects
+#' @param error_values names of the columns defined as error effects
+#' @param average_techn_rep logical, indicates if the technical replicates
+#' @param input_scale character, defining in which scale the input is passed.
+#' must be one of c('linear', 'log', 'log2', 'log10')
+#' should be averaged
+#'
+#' @return A new data set including the original, scaled and
+#' predicted data as well as the estimated parameters
+#'
+#' @noRd
+
+scale_target <- function(current_data,
+                         scaling_values,
+                         distinguish_values,
+                         error_values,
+                         average_techn_rep,
+                         input_scale) {
+    # developement helper only
+    if (FALSE) {
+        current_data <- to_be_scaled[[1]]
+    }
+
+    # Add column for error
+    current_data$sigma <- NaN
+
+    # Add a dummy column filled with 1
+    current_data[["1"]] <- "1"
+
+    # Initialize the parameter for the current target
+    current_parameter <- NULL
+
+    # Build a list of string of distinguish/scaling values present
+    data_fit_distinguish <- do.call(
+        paste_, current_data[, distinguish_values, drop = FALSE]
+    )
+
+    data_fit_scaling <- do.call(
+        paste_, current_data[, scaling_values, drop = FALSE]
+    )
+
+    # Reducing datapoints
+    if (average_techn_rep) {
+        if (verbose) {
+            cat("Analyzing technical replicates ... ")
+        }
+        groups <- interaction(data_fit_distinguish, data_fit_scaling)
+        if (any(duplicated(groups))) {
+            current_data <- do.call(rbind, lapply(
+                unique(groups),
+                function(g) {
+                    subdata <- current_data[groups == g, ]
+                    outdata <- subdata[1, ]
+                    outdata$value <- mean(subdata$value)
+                    return(outdata)
+                }
+            ))
+            cat(
+                "data points that could not be distinguished by either ",
+                "distinguish\nor scaling variables have been averaged.\n"
+            )
+        } else {
+            if (verbose) {
+                cat("none found.\n")
+            }
+        }
+    }
+
+    # compile dataset fit for fitting
+    data_fit <- data.frame(
+        current_data[
+            ,
+            union(c("name", "time", "value", "sigma"), covariates)
+        ],
+        distinguish = do.call(
+            paste_,
+            current_data[, distinguish_values, drop = FALSE]
+        ),
+        scaling = do.call(
+            paste_,
+            current_data[, scaling_values, drop = FALSE]
+        ),
+        error = do.call(
+            paste_,
+            current_data[, error_values, drop = FALSE]
+        ),
+        stringsAsFactors = FALSE
+    )
+
+    # Retrieve (unique) list of distinguish, scaling and error values
+    distinguish_levels <- unique(as.character(data_fit$distinguish))
+    scaling_levels <- unique(as.character(data_fit$scaling))
+    error_levels <- unique(as.character(data_fit$error))
+
+    # Combine above lists all_levels will therefore have the length of the
+    # sum of all different distinguish, scaling and error values (in that order)
+    all_levels <- unlist(
+        lapply(
+            seq_along(parameters),
+            function(k) {
+                switch(names(parameters)[k],
+                    distinguish = distinguish_levels,
+                    scaling = scaling_levels,
+                    error = error_levels
+                )
+            }
+        )
+    )
+
+    initial_parameters <- generate_initial_pars(
+        parameters,
+        input_scale,
+        distinguish_levels,
+        scaling_levels,
+        error_levels
+    )
+
+    mask <- generate_mask(
+        initial_parameters,
+        parameters,
+        all_levels,
+        data_fit
+    )
+}
+
+
+
+# generate_initial_pars() -------------------------------------------------
+
+#' Method to generate a set of initial parameters for \link{scale_target}
+#'
+#' @noRd
+
+generate_initial_pars <- function(parameters,
+                                  input_scale,
+                                  distinguish_levels,
+                                  scaling_levels,
+                                  error_levels) {
+    # Create a named vector with initial values for all parameters. The name
+    # is the parameter, and the initial value is 0 for log and 1 for linear.
+    # each parameter name-value entry is repeated as many times as there are
+    # measurements of the i'th target with this parameter.
+    # Example: distinguish is passed as "ys ~ condition", so the entry with name
+    #   "ys" will be repeated for as many times as there are measurements
+    #   with the same "condition" entry.
+    initial_parameters <- do.call(
+        "c",
+        lapply(
+            seq_along(parameters),
+            # Go through all parameters with current parameter n
+            function(n) {
+                if (input_scale != "linear") {
+                    v <- 0
+                } else {
+                    v <- 1
+                }
+                # Let l be the number of measurements of same type (distinguish,
+                # scaling or error) for the current n
+                l <- switch(
+                    # Get "distinguish", "scaling" or "error" from the current n
+                    names(parameters)[n],
+                    distinguish = length(distinguish_levels),
+                    scaling = length(scaling_levels),
+                    error = length(error_levels)
+                )
+
+                # Get the n'th parameter
+                p <- as.character(parameters[n])
+
+                # The variable "parameter_values" will have l times the entry
+                # "v" (0 for log, 1 for linear) with the corresponding parameter
+                # as the name.
+                parameter_values <-
+                    structure(
+                        rep(v, l),
+                        names = rep(p, l)
+                    )
+                return(parameter_values)
+            }
+        )
+    )
+    return(initial_parameters)
+}
+
+
+# generate_mask() ---------------------------------------------------------
+
+#' Creates a identifier list
+#'
+#' A list with one element per entry in initial_parameters is generated. For
+#' each of those elements, it is checked which elements of the data set
+#' \code{data_fit} coincides with the current element of \code{all_levels}.
+#' Keep in mind, that the \code{initial_parameters} and \code{all_levels} are
+#' structured analogue.
+#'
+#' @param initial_parameters named vector, set of parameters as output of
+#' \link{generate_initial_pars}
+#' @param parameters named vector, with the 'values' of the three effects
+#' @param all_levels character vector, strings describing all levels in the
+#' current data set
+#' @param data_fit data frame containing the data that will be fitted
+#'
+#' @noRd
+
+generate_mask <- function(initial_parameters,
+                          parameters,
+                          all_levels,
+                          data_fit) {
+    mask <- lapply(
+        seq_along(initial_parameters),
+        function(k) {
+            effect <- names(
+                parameters[
+                    match(
+                        names(initial_parameters[k]),
+                        parameters
+                    )
+                ]
+            )
+            mask_vector <- as.numeric(
+                data_fit[[effect]] == all_levels[k]
+            )
+            return(mask_vector)
+        }
+    )
+}

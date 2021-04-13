@@ -156,3 +156,148 @@ test_that("input_check()", {
         "'input_scale' must be 'linear', 'log', 'log2' or 'log10'."
     )
 })
+
+
+# generate_initial_pars() -------------------------------------------------
+test_that("generate_initial_pars()", {
+    parameters <- c(
+        "distinguish" = "yi",
+        "scaling" = "sj",
+        "error" = "sigmaR"
+    )
+    distinguish_levels <- c(
+        "distinguish_1",
+        "distinguish_2",
+        "distinguish_3",
+        "distinguish_4",
+        "distinguish_5",
+        "distinguish_6",
+        "distinguish_7"
+    )
+    scaling_levels <- c(
+        "scaling_1",
+        "scaling_2"
+    )
+    error_levels <- "error1"
+
+    expect_equal(
+        generate_initial_pars(
+            parameters = parameters,
+            input_scale = "linear",
+            distinguish_levels,
+            scaling_levels,
+            error_levels
+        ),
+        c(
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "sj" = 1,
+            "sj" = 1,
+            "sigmaR" = 1
+        )
+    )
+
+    expect_equal(
+        generate_initial_pars(
+            parameters = parameters,
+            input_scale = "log",
+            distinguish_levels,
+            scaling_levels,
+            error_levels
+        ),
+        c(
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "sj" = 0,
+            "sj" = 0,
+            "sigmaR" = 0
+        )
+    )
+
+    expect_equal(
+        generate_initial_pars(
+            parameters = parameters,
+            input_scale = "log2",
+            distinguish_levels,
+            scaling_levels,
+            error_levels
+        ),
+        c(
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "sj" = 0,
+            "sj" = 0,
+            "sigmaR" = 0
+        )
+    )
+
+    expect_equal(
+        generate_initial_pars(
+            parameters = parameters,
+            input_scale = "log2",
+            distinguish_levels = c(
+                "pAKT_0_0Uml Epo",
+                "pAKT_5_0Uml Epo",
+                "pAKT_10_0Uml Epo"
+            ),
+            scaling_levels,
+            error_levels
+        ),
+        c(
+            "yi" = 0,
+            "yi" = 0,
+            "yi" = 0,
+            "sj" = 0,
+            "sj" = 0,
+            "sigmaR" = 0
+        )
+    )
+
+    expect_equal(
+        generate_initial_pars(
+            parameters = parameters,
+            input_scale = "linear",
+            distinguish_levels = c(
+                "distinguish_a",
+                "distinguish_b",
+                "distinguish_c"
+            ),
+            scaling_levels = c(
+                "scaling_a",
+                "scaling_b",
+                "scaling_c"
+            ),
+            error_levels = c(
+                "error_a",
+                "error_b",
+                "error_c"
+            )
+        ),
+        c(
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "sj" = 1,
+            "sj" = 1,
+            "sj" = 1,
+            "sigmaR" = 1,
+            "sigmaR" = 1,
+            "sigmaR" = 1
+        )
+    )
+})
