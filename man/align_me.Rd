@@ -13,7 +13,7 @@ align_me(
   error = NULL,
   input_scale = "linear",
   normalize = TRUE,
-  verbose = TRUE,
+  verbose = FALSE,
   normalize_input = TRUE
 )
 }

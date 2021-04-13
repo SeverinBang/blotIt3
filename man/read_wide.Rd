@@ -30,8 +30,8 @@ is converted into a long table
 \examples{
 ## Import example data set
 sim_data_wide_file <- system.file(
-  "extdata", "sim_data_wide.csv",
-  package = "blotIt3"
+    "extdata", "sim_data_wide.csv",
+    package = "blotIt3"
 )
 read_wide(sim_data_wide_file, description = seq_len(3))
 }

@@ -2,81 +2,42 @@
 # get_symbols() -----------------------------------------------------------
 
 test_that("read_symbols()", {
-  expect_equal(
-    get_symbols("left1 ~ right11 + right12"),
-    c("left1", "right11", "right12")
-  )
-  expect_equal(
-    get_symbols(
-      "left2 ~ (right21 * right22 / (right23 * right24)) - right25"
-    ),
-    c("left2", "right21", "right22", "right23", "right24", "right25")
-  )
+    expect_equal(
+        get_symbols("left1 ~ right11 + right12"),
+        c("left1", "right11", "right12")
+    )
+    expect_equal(
+        get_symbols(
+            "left2 ~ (right21 * right22 / (right23 * right24)) - right25"
+        ),
+        c("left2", "right21", "right22", "right23", "right24", "right25")
+    )
 })
 
 
-
-# identify_parameters() ---------------------------------------------------
-
-test_that("identify_parameters()", {
-  expect_error(
-    identify_effects(
-      distinguish = left ~ right,
-      scaling = "as ~ string",
-      error = left ~ right
-    ),
-    "Do not pass distinguish, scaling or error as string."
-  )
-
-
-  expect_error(
-    identify_effects(
-      scaling = left ~ right,
-      error = left ~ right
-    ),
-    "Left and right-hand side of formula 'distinguish' is needed"
-  )
-
-  expect_error(
-    identify_effects(
-      distinguish = left ~ right + right1,
-      error = left ~ right
-    ),
-    "Left and right-hand side of formula 'scaling' is needed"
-  )
-
-
-  expect_error(
-    identify_effects(
-      distinguish = left ~ right + right1,
-      scaling = one ~ two
-    ),
-    "Left and right-hand side of formula 'error' is needed"
-  )
-})
 
 
 
 # replace_symbols() -------------------------------------------------------
 
 test_that("replace_symbols()", {
-  expect_equal(
-    replace_symbols(
-      what = "before",
-      by = "after",
-      x = "this ~ before"
-    ),
-    "this~after"
-  )
+    expect_equal(
+        replace_symbols(
+            what = "before",
+            by = "after",
+            x = "this ~ before"
+        ),
+        "this~after"
+    )
 
-  expect_equal(
-    replace_symbols(
-      what = c("before1", "before2", "before3"),
-      by = c("after1", "after2", "after3"),
-      x = "this ~ before1*before2/before3"
-    ),
-    "this~after1*after2/after3"
-  )
+    expect_equal(
+        replace_symbols(
+            what = c("before1", "before2", "before3"),
+            by = c("after1", "after2", "after3"),
+            x = "this ~ before1*before2/before3"
+        ),
+        "this~after1*after2/after3"
+    )
 })
 
 
@@ -84,35 +45,114 @@ test_that("replace_symbols()", {
 # analyze_blocks() --------------------------------------------------------
 
 test_that("analyze_blocks()", {
-  test_block_matrix <- matrix(
-    c(
-      1, 0, 0, 0,
-      1, 0, 0, 0,
-      0, 1, 0, 0,
-      0, 1, 1, 0,
-      0, 0, 1, 0,
-      0, 0, 0, 1,
-      0, 0, 0, 1
-    ),
-    nrow = 7,
-    byrow = TRUE
-  )
-  expect_equal(
-    analyze_blocks(
-      test_block_matrix
-    ),
-    list(
-      c(1, 2),
-      c(3, 4, 5),
-      c(6, 7)
+    test_block_matrix <- matrix(
+        c(
+            1, 0, 0, 0,
+            1, 0, 0, 0,
+            0, 1, 0, 0,
+            0, 1, 1, 0,
+            0, 0, 1, 0,
+            0, 0, 0, 1,
+            0, 0, 0, 1
+        ),
+        nrow = 7,
+        byrow = TRUE
     )
-  )
-  expect_equal(
-    length(
-      analyze_blocks(
-        test_block_matrix
-      )
-    ),
-    3
-  )
+    expect_equal(
+        analyze_blocks(
+            test_block_matrix
+        ),
+        list(
+            c(1, 2),
+            c(3, 4, 5),
+            c(6, 7)
+        )
+    )
+    expect_equal(
+        length(
+            analyze_blocks(
+                test_block_matrix
+            )
+        ),
+        3
+    )
+})
+
+
+# input_check() -----------------------------------------------------------
+
+test_that("input_check()", {
+    sim_data_wide_file <- system.file(
+        "extdata", "sim_data_wide.csv",
+        package = "blotIt3"
+    )
+    sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
+
+    expect_equal(
+        input_check(
+            data = sim_data_long,
+            model = "yi / sj",
+            error_model = "value * sigmaR",
+            distinguish = yi ~ name + time + condition,
+            scaling = sj ~ name + ID,
+            error = sigmaR ~ name + 1,
+            input_scale = "linear"
+        ),
+        "All input checks passed."
+    )
+
+    expect_error(
+        input_check(
+            data = sim_data_long,
+            model = "yi / sj",
+            error_model = "value * sigmaR",
+            distinguish = yi ~ name + time + condition + wrong,
+            scaling = sj ~ name + ID,
+            error = sigmaR ~ name + 1,
+            input_scale = "linear"
+        ),
+        paste0(
+            "Not all column names set in 'distinguish', 'scaling' and 'error' ",
+            "are present in 'data'."
+        )
+    )
+
+    expect_error(
+        input_check(
+            data = sim_data_long,
+            model = "yi / sj",
+            error_model = "value * sigmaR",
+            # distinguish = "yi ~ name + time + condition",
+            scaling = sj ~ name + ID,
+            error = sigmaR ~ name + 1,
+            input_scale = "linear"
+        ),
+        "All of model, error_model, distinguish, scaling, error must be set."
+    )
+
+    expect_error(
+        input_check(
+            data = sim_data_long,
+            # model = "yi / sj",
+            error_model = "value * sigmaR",
+            # distinguish = "yi ~ name + time + condition",
+            scaling = sj ~ name + ID,
+            # error = sigmaR ~ name + 1,
+            input_scale = "linear"
+        ),
+        "All of model, error_model, distinguish, scaling, error must be set."
+    )
+
+    expect_error(
+        input_check(
+            data = sim_data_long,
+            model = "yi / sj",
+            error_model = "value * sigmaR",
+            distinguish = "yi ~ name + time + condition",
+            scaling = sj ~ name + ID,
+            error = sigmaR ~ name + 1,
+            input_scale = "wrong"
+        ),
+        "'input_scale' must be 'linear', 'log', 'log2' or 'log10'."
+    )
 })

@@ -94,119 +94,244 @@ align_me <- function(data,
                      error = NULL,
                      input_scale = "linear",
                      normalize = TRUE,
-                     verbose = TRUE,
+                     verbose = FALSE,
                      normalize_input = TRUE) {
-  if (FALSE) {
-    sim_data_wide_file <- system.file(
-      "extdata", "sim_data_wide.csv",
-      package = "blotIt3"
+    if (FALSE) {
+        sim_data_wide_file <- system.file(
+            "extdata", "sim_data_wide.csv",
+            package = "blotIt3"
+        )
+        data <- read_wide(sim_data_wide_file, description = seq_len(3))
+        model <- "yi / sj"
+        error_model <- "value * sigmaR"
+        distinguish <- yi ~ name + time + condition
+        scaling <- sj ~ name + ID
+        error <- sigmaR ~ name + 1
+        input_scale <- "linear"
+        normalize <- TRUE
+        verbose <- TRUE
+        normalize_input <- TRUE
+    }
+
+    # check input for mistakes
+    input_check_report <- input_check(
+        data = data,
+        model = model,
+        error_model = error_model,
+        distinguish = distinguish,
+        scaling = scaling,
+        error = error,
+        input_scale = input_scale
     )
-    data <- read_wide(sim_data_wide_file, description = seq_len(3))
-    model <- "yi / sj"
-    error_model <- "value * sigmaR"
-    distinguish <- yi ~ name + time + condition
-    scaling <- sj ~ name + ID
-    error <- sigmaR ~ name + 1
-    input_scale <- "linear"
-    normalize <- TRUE
-    verbose <- TRUE
-    normalize_input <- TRUE
-  }
 
-  if (!(as.character(input_scale) %in% c("linear", "log", "log2", "log10"))) {
-    stop(
-      "'input_scale' must be 'linear', 'log', 'log2' or 'log10'"
+    if (verbose) {
+        cat(input_check_report, "\n")
+    }
+
+    ## read distinguishing, scaling and error effects from input
+    effects <- identify_effects(
+        distinguish = distinguish,
+        scaling = scaling,
+        error = error
     )
-  }
 
-  if (is.null(model) | is.null(error_model) | is.null(distinguish) |
-    is.null(scaling) | is.null(error)) {
-    stop(
-      "All of model, error_model, distinguish, scaling, error ",
-      "must be set."
+    scaling_values <- effects$effects_values$scaling_values
+    distinguish_values <- effects$effects_values$distinguish_values
+    error_values <- effects$effects_values$error_values
+
+    scaling_pars <- effects$effects_pars$scaling_pars
+    distinguish_pars <- effects$effects_pars$distinguish_pars
+    error_pars <- effects$effects_pars$error_pars
+
+    ## prepare data
+    data <- as.data.frame(data)
+
+    targets <- unique(data$name)
+
+    to_be_scaled <- split_for_scaling(
+        data,
+        distinguish_values,
+        scaling_values,
+        normalize_input,
+        input_scale
     )
-  }
-
-  ## read distinguishing, scaling and error effects from input
-  effects <- identify_effects(
-    distinguish = distinguish,
-    scaling = scaling,
-    error = error
-  )
-
-  scaling_values <- effects$effects_values$scaling_values
-  distinguish_values <- effects$effects_values$distinguish_values
-  error_values <- effects$effects_values$error_values
-
-  scaling_pars <- effects$effects_pars$scaling_pars
-  distinguish_pars <- effects$effects_pars$distinguish_pars
-  error_pars <- effects$effects_pars$error_pars
-
-  ## prepare data
-  data <- as.data.frame(data)
-
-  targets <- unique(data$name)
-
-  to_be_scaled <- split_for_scaling(
-    data,
-    distinguish_values,
-    scaling_values,
-    normalize_input,
-    input_scale
-  )
 
 
-  ## Get distinguish, scaling and error parameter from model and error model
-  parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
+    ## Get distinguish, scaling and error parameter from model and error model
+    parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
 
-  # Include the normalization term as a constraint if saied so in the function
-  # call
-  if (normalize) {
-    constraint <- paste("1e3 * (mean(", distinguish_pars[1], ") - 1)")
-    c_strength <- 1000
-  } else {
-    constraint <- "0"
-    c_strength <- 0
-  }
+    # Include the normalization term as a constraint if saied so in the function
+    # call
+    if (normalize) {
+        constraint <- paste("1e3 * (mean(", distinguish_pars[1], ") - 1)")
+        c_strength <- 1000
+    } else {
+        constraint <- "0"
+        c_strength <- 0
+    }
 
-  # Retrieve the covariates as the "remaining" model parameters, when fixed,
-  # latent and errorparameters are excluded
-  covariates <- union(
-    get_symbols(
-      model,
-      exclude = c(distinguish_pars, scaling_pars, error_pars)
-    ),
-    get_symbols(
-      error_model,
-      exclude = c(distinguish_pars, scaling_pars, error_pars)
+    # Retrieve the covariates as the "remaining" model parameters, when fixed,
+    # latent and errorparameters are excluded
+    covariates <- union(
+        get_symbols(
+            model,
+            exclude = c(distinguish_pars, scaling_pars, error_pars)
+        ),
+        get_symbols(
+            error_model,
+            exclude = c(distinguish_pars, scaling_pars, error_pars)
+        )
     )
-  )
-  cat("Covariates:", paste(covariates, sep = ", "), "\n")
+    cat("Covariates:", paste(covariates, sep = ", "), "\n")
 
-  # Check if parameters from (error-) model and passed expressions coincide
-  if (
-    length(
-      setdiff(c(distinguish_pars, scaling_pars, error_pars), parameters)
-    ) > 0
-  ) {
-    stop("Not all paramters are defined in either arguments
+    # Check if parameters from (error-) model and passed expressions coincide
+    if (
+        length(
+            setdiff(c(distinguish_pars, scaling_pars, error_pars), parameters)
+        ) > 0
+    ) {
+        stop("Not all paramters are defined in either arguments
          'scaling', 'distinguish' or 'error'")
-  }
+    }
 
-  # Name the respective parameters fixed, latent and error
-  names(parameters)[parameters %in% distinguish_pars] <- "distinguish"
-  names(parameters)[parameters %in% scaling_pars] <- "scaling"
-  names(parameters)[parameters %in% error_pars] <- "error"
+    # Name the respective parameters fixed, latent and error
+    names(parameters)[parameters %in% distinguish_pars] <- "distinguish"
+    names(parameters)[parameters %in% scaling_pars] <- "scaling"
+    names(parameters)[parameters %in% error_pars] <- "error"
 
-  # parse error model by replacing the "value" by the model
-  error_model <- replace_symbols(
-    "value",
-    paste0("(", model, ")"),
-    error_model
-  )
+    # parse error model by replacing the "value" by the model
+    error_model <- replace_symbols(
+        "value",
+        paste0("(", model, ")"),
+        error_model
+    )
 
-  # Calculating the derivative
-  model_derivertive <- deparse(
-    D(parse(text = model), name = distinguish_pars[1])
-  )
+    # Apply transformation according to the given 'input_scale' parameter
+    if (input_scale == "log") {
+        model <- replace_symbols(parameters, paste0(
+            "exp(", parameters,
+            ")"
+        ), model)
+        error_model <- replace_symbols(parameters, paste0(
+            "exp(",
+            parameters, ")"
+        ), error_model)
+        constraint <- replace_symbols(parameters, paste0(
+            "exp(",
+            parameters, ")"
+        ), constraint)
+        if (verbose) {
+            cat("model, errormodel and constraint are scaled: x <- exp(x)\n")
+        }
+    } else if (input_scale == "log2") {
+        model <- replace_symbols(parameters, paste0(
+            "2^(", parameters,
+            ")"
+        ), model)
+        error_model <- replace_symbols(parameters, paste0(
+            "2^(",
+            parameters, ")"
+        ), error_model)
+        constraint <- replace_symbols(parameters, paste0(
+            "2^(",
+            parameters, ")"
+        ), constraint)
+        if (verbose) {
+            cat("model, errormodel and constraint are scaled: x <- 2^(x)\n")
+        }
+    } else if (input_scale == "log10") {
+        model <- replace_symbols(parameters, paste0(
+            "10^(", parameters,
+            ")"
+        ), model)
+        error_model <- replace_symbols(parameters, paste0(
+            "10^(",
+            parameters, ")"
+        ), error_model)
+        constraint <- replace_symbols(parameters, paste0(
+            "10^(",
+            parameters, ")"
+        ), constraint)
+        if (verbose) {
+            cat("model, errormodel and constraint are scaled: x <- 10^(x)\n")
+        }
+    } else if (input_scale == "linear") {
+        if (verbose) {
+            cat("model, errormodel and constraint remain linear scaled")
+        }
+    }
+
+
+    # Calculating the derivative
+    model_derivertive <- deparse(
+        D(parse(text = model), name = distinguish_pars[1])
+    )
+
+    # Calculating the (error) model jacobian
+    model_jacobian <- lapply(
+        parameters,
+        function(p) {
+            deparse(D(parse(text = model), name = p))
+        }
+    )
+    error_model_jacobian <- lapply(
+        parameters,
+        function(p) {
+            deparse(D(parse(text = error_model), name = p))
+        }
+    )
+
+    # Construct math function expressions
+    constraint_expr <- parse(text = constraint)
+
+    # Replace the parameters used in the (error) model and the derivatives
+    # by placeholders of the respective effect category
+    for (n in seq_along(parameters)) {
+        model <- replace_symbols(parameters[n], paste0(
+            parameters[n],
+            "[", names(parameters)[n], "]"
+        ), model)
+        error_model <- replace_symbols(parameters[n], paste0(
+            parameters[n],
+            "[", names(parameters)[n], "]"
+        ), error_model)
+        model_derivertive <- replace_symbols(parameters[n], paste0(
+            parameters[n],
+            "[", names(parameters)[n], "]"
+        ), model_derivertive)
+        model_jacobian <- lapply(model_jacobian, function(myjac) {
+            replace_symbols(
+                parameters[n],
+                paste0(
+                    parameters[n], "[", names(parameters)[n],
+                    "]"
+                ), myjac
+            )
+        })
+        error_model_jacobian <- lapply(error_model_jacobian, function(myjac) {
+            replace_symbols(
+                parameters[n],
+                paste0(
+                    parameters[n], "[", names(parameters)[n],
+                    "]"
+                ), myjac
+            )
+        })
+    }
+
+    cat("Model:        ", model, "\n", sep = "")
+    cat("Error Model:  ", error_model, "\n", sep = "")
+
+    # Parse functions to an executable expression
+    model_expr <- parse(text = model)
+    model_derivertive_expr <- parse(text = model_derivertive)
+    error_model_expr <- parse(text = error_model)
+    model_jacobian_expr <- lapply(
+        model_jacobian,
+        function(myjac) parse(text = myjac)
+    )
+    error_model_jacobian_expr <- lapply(
+        error_model_jacobian,
+        function(myjac) parse(text = myjac)
+    )
 }
