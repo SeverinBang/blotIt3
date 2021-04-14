@@ -306,3 +306,188 @@ test_that("generate_initial_pars()", {
         )
     )
 })
+
+
+# objective_function() ----------------------------------------------------
+test_that("objective_function()", {
+
+
+    test_initial_parameters <- c(
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        sj = 1,
+        sj = 1,
+        sigmaR = 1
+    )
+
+    test_fit_pars_distinguish <- NULL
+
+    test_data_fit <- data.frame(
+        name = c(
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT"
+        ),
+        time = c(
+            0, 5, 10, 20, 30, 60, 240, 0
+        ),
+        value = c(
+            1.0289464,
+            1.2224292,
+            0.8726507,
+            0.9395381,
+            1.0130045,
+            0.9855736,
+            1.1674557,
+            0.8319320
+        ),
+        sigma = c(
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN
+        ),
+        distinguish = c(
+            "pAKT_0_0Uml Epo",
+            "pAKT_5_0Uml Epo",
+            "pAKT_10_0Uml Epo",
+            "pAKT_20_0Uml Epo",
+            "pAKT_30_0Uml Epo",
+            "pAKT_60_0Uml Epo",
+            "pAKT_240_0Uml Epo",
+            "pAKT_0_0Uml Epo"
+        ),
+        scaling = c(
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_2"
+        ),
+        error = c(
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT"
+        )
+    )
+
+    levels_list <- list(
+        distinguish = c(
+            "distinguish_1",
+            "distinguish_2",
+            "distinguish_3",
+            "distinguish_4",
+            "distinguish_5",
+            "distinguish_6",
+            "distinguish_7"
+        ),
+        scaling = c(
+            "scaling_1",
+            "scaling_2"
+        ),
+        error = "error1"
+    )
+
+    test_parameters <- c(
+        "distinguish" = "yi",
+        "scaling" = "sj",
+        "error" = "sigmaR"
+    )
+
+    test_levels_list = list(
+        distinguish = c(
+            "pAKT_0_0Uml Epo",
+            "pAKT_5_0Uml Epo",
+            "pAKT_10_0Uml Epo",
+            "pAKT_20_0Uml Epo",
+            "pAKT_30_0Uml Epo",
+            "pAKT_60_0Uml Epo",
+            "pAKT_240_0Uml Epo"
+        ),
+        scaling = c(
+            "pAKT_test", "pAKT_2"
+        ),
+        error = c(
+            "pAKT"
+        )
+    )
+
+    test_effects_pars <- list(
+        distinguish_pars = "yi",
+        scaling_pars = "sj",
+        error_pars = "sigmaR"
+    )
+
+    test_c_strenth = 1000
+
+    test_all_levels = c(
+        "pAKT_0_0Uml Epo",
+        "pAKT_5_0Uml Epo",
+        "pAKT_10_0Uml Epo",
+        "pAKT_20_0Uml Epo",
+        "pAKT_30_0Uml Epo",
+        "pAKT_60_0Uml Epo",
+        "pAKT_240_0Uml Epo",
+        "pAKT_test",
+        "pAKT_2",
+        "pAKT"
+    )
+
+    test_mask <- generate_mask(
+        test_initial_parameters,
+        test_parameters,
+        test_all_levels,
+        test_data_fit
+    )
+
+    expect_equal(
+
+        objective_function(
+            current_parameters = test_initial_parameters,
+            fit_pars_distinguish = test_fit_pars_distinguish,
+            calculate_derivative = TRUE,
+            data_fit = test_data_fit,
+            parameters = test_parameters,
+            levels_list = test_levels_list,
+            effects_pars = test_effects_pars,
+            c_strength = test_c_strenth,
+            mask = test_mask
+            ),
+        c(
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "yi" = 1,
+            "sj" = 1,
+            "sj" = 1,
+            "sigmaR" = 1
+        )
+    )
+
+})
+

@@ -295,14 +295,22 @@ input_check <- function(data = NULL,
 #'
 #' @noRd
 
-scale_target <- function(current_data,
-                         effects_values,
-                         average_techn_rep,
-                         input_scale) {
+scale_target <- function(i) {
     # developement helper only
     if (FALSE) {
-        current_data <- to_be_scaled[[1]]
+        i = 1
+
+        # ,
+        # to_be_scaled,
+        # effects_values,
+        # average_techn_rep,
+        # input_scale,
+        # targets
+
     }
+
+
+    current_data <- to_be_scaled[[i]]
 
     # Add column for error
     current_data$sigma <- NaN
@@ -406,6 +414,208 @@ scale_target <- function(current_data,
     )
 
     fit_pars_distinguish <- NULL
+
+    if (verbose) {
+        cat("Starting fit\n")
+    }
+
+    fit_result <- trust::trust(
+        objfun =  objective_function,
+        parinit = initial_parameters,
+        rinit = 1,
+        rmax = 10,
+        blather = verbose,
+        # folowing: additional parameters for objective_function()
+        fit_pars_distinguish = fit_pars_distinguish,
+        calculate_derivative = TRUE,
+        data_fit = data_fit,
+        parameters = parameters,
+        levels_list = levels_list,
+        effects_pars = effects_pars,
+        c_strength = c_strength
+    )
+
+    if (!fit_result$converged) {
+        warning(paste("Non-converged fit for target", targets[i]))
+    }
+
+    residuals_fit <- residual_function(
+        current_parameters =  fit_result$argument,
+        fit_pars_distinguish =  fit_pars_distinguish,
+        parameters = parameters,
+        levels_list = levels_list,
+        effects_pars = effects_pars,
+        calculate_derivative = FALSE)
+
+    bessel <- sqrt(
+        nrow(data_fit) / (nrow(data_fit) - length(initial_parameters) + normalize)
+        )
+
+    # Get singular values (roots of non negative eigenvalues of M^* \cdot M)
+    # here it is synonymous with eigenvalue.
+    single_values <- svd(fit_result[["hessian"]])[["d"]]
+
+    # Define a tollerance threshold, the root of the machine precission is
+    # a usual value for this threshold.
+    tol <- sqrt(.Machine$double.eps)
+
+    # Define nonidentifiable as being "to small to handle", judged by the
+    # above defined threshold
+    non_identifiable <- which(single_values < tol * single_values[1])
+    if (length(non_identifiable) > 0) {
+        warning("Eigenvalue(s) of Hessian below tolerance. Parameter
+                  uncertainties might be underestimated.")
+    }
+
+    # Generate parameter table
+    parameter_table <- data.frame(
+        name = targets[i],
+        level = c(
+            rep(levels_list[[1]], length(effects_pars[[1]])),
+            rep(levels_list[[2]], length(effects_pars[[2]])),
+            rep(levels_list[[3]], length(effects_pars[[3]]))
+        ),
+        parameter = names(fit_result$argument),
+        value = fit_result$argument,
+
+        # Calculating the error from the inverse of the Fisher information
+        # matrix which is in this case the Hessian, to which the above
+        # calculated Bessel correction is applied.
+        sigma = as.numeric(
+            sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
+        ) * bessel,
+        nll = fit_result$value,
+        no_pars = length(fit_result$argument) - normalize,
+        no_data = nrow(data_fit)
+    )
+
+    if (input_scale == "log") {
+        parameter_table$value <- exp(parameter_table$value)
+        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+    } else if (input_scale == "log2") {
+        parameter_table$value <- 2^(parameter_table$value)
+        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+    } else if (input_scale == "log10") {
+        parameter_table$value <- 10^(parameter_table$value)
+        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+    }
+
+    if (verbose) {
+        cat("Estimated parameters on non-log scale:\n")
+        print(parameter_table)
+        cat(
+            "converged:", fit_result$converged, ", iterations:",
+            fit_result$iterations, "\n"
+        )
+        cat("-2*LL: ", fit_result$value, "on", nrow(data_fit) +
+                normalize - length(fit_result$argument), "degrees of freedom\n")
+    }
+
+    attr(parameter_table, "value") <- fit_result$value
+    attr(parameter_table, "df") <- nrow(data_fit) + normalize -
+        length(data_fit$argument)
+
+    # Predicted data
+    out_predicted <- data_fit
+    out_predicted$sigma <- fit_result$sigma * bessel
+    out_predicted$value <- fit_result$prediction
+
+    # Initialize list for scaled values
+    values_scaled <- rep(0, nrow(data_fit))
+    if (verbose) {
+        cat("Inverting model ... ")
+    }
+
+    values_scaled <- try(
+        # my_multiroot
+        rootSolve::multiroot(
+            f = evaluate_model,
+            start = values_scaled,
+            jacfunc = evaluate_model_jacobian,
+            par_list = residuals_fit[-1],
+            verbose = F
+        )$root,
+        silent = TRUE
+    )
+    if (verbose) {
+        cat("done\n")
+    }
+
+    if (inherits(values_scaled, "try-error")) {
+        out_scaled <- NULL
+        warning("Rescaling to common scale not possible.
+                  Equations not invertible.")
+    } else {
+        my_deriv <- abs(evaluate_model_jacobian(values_scaled, residuals_fit[-1]))
+        sigmas_scaled <- fit_result$sigma * bessel / my_deriv
+        if (input_scale == "log") {
+            values_scaled <- exp(values_scaled)
+            sigmas_scaled <- values_scaled * sigmas_scaled
+        } else if (input_scale == "log2") {
+            values_scaled <- 2^(values_scaled)
+            sigmas_scaled <- values_scaled * sigmas_scaled
+        } else if (input_scale == "log10") {
+            values_scaled <- 10^(values_scaled)
+            sigmas_scaled <- values_scaled * sigmas_scaled
+        }
+        out_scaled <- current_data
+        out_scaled$value <- values_scaled
+        out_scaled$sigma <- sigmas_scaled
+    }
+
+    # Averaged
+    nini <- length(levels_list[[1]])
+
+    # Use one datapoint per unique set of fixed parameters
+    out_aligned <- current_data[
+        !duplicated(data_fit$distinguish),
+        intersect(effects_values[[1]], colnames(current_data))
+    ]
+
+    # The values are the fitted parameters for the respective fixed
+    # parameter ensembles.
+    out_aligned$value <- residuals_fit[[effects_pars[[1]][1]]]
+    if (input_scale == "log") {
+        out_aligned$value <- exp(out_aligned$value)
+    } else if (input_scale == "log2") {
+        out_aligned$value <- 2^(out_aligned$value)
+    } else if (input_scale == "log10") {
+        out_aligned$value <- 10^(out_aligned$value)
+    }
+
+    # The sigmas are calculated the same way as above.
+    out_aligned$sigma <- as.numeric(
+        sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
+    )[1:nini] * bessel
+    if (input_scale == "log") {
+        out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    } else if (input_scale == "log2") {
+        out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    } else if (input_scale == "log10") {
+        out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    }
+
+
+    # Get the original data
+    out_original <- current_data
+    for (k in seq_along(parameters)) {
+        effect <- names(parameters)[k]
+        my_levels <- as.character(data_fit[[effect]])
+        index0 <- which(as.character(parameter_table$parameter) == parameters[k])
+        index1 <- match(my_levels, as.character(parameter_table$level[index0]))
+        index <- index0[index1]
+        out_original[[parameters[k]]] <- parameter_table$value[index]
+    }
+    out <- list(
+        "prediction" = out_predicted,
+        "scaled" = out_scaled,
+        "aligned" = out_aligned,
+        "what" = current_data,
+        "original" = out_original,
+        "parameters" = parameter_table
+    )
+
+    return(out)
 }
 
 
@@ -517,27 +727,27 @@ generate_mask <- function(initial_parameters,
 
 #' Calculate residuals for optimization
 #'
-#' Residuals of model evaluations for a set of \code{test_parameters} and
+#' Residuals of model evaluations for a set of \code{current_parameters} and
 #' \code{fit_pars_distinguish} are calculated by evaluation of \link{rss_model}.
 #'
-#' @param test_parameters named vector of vectors to be tested currently
+#' @param current_parameters named vector of vectors to be tested currently
 #' @param  fit_pars_distinguish named vector that will contain the fitted values
 #' of the distinguish parameters.
 #'
 #' @return large list
 #'
 #' @noRd
-residual_function <- function(test_parameters,
+residual_function <- function(current_parameters,
                               fit_pars_distinguish,
                               parameters,
                               levels_list,
                               effects_pars,
-                              deriv = TRUE) {
+                              calculate_derivative = TRUE) {
     if (FALSE) {
-        test_parameters <- initial_parameters
+        current_parameters <- initial_parameters
         fit_pars_distinguish <- NULL
     }
-    pars_all <- c(test_parameters, fit_pars_distinguish)
+    pars_all <- c(current_parameters, fit_pars_distinguish)
     par_list <- lapply(
         parameters,
         function(n) {
@@ -565,17 +775,283 @@ residual_function <- function(test_parameters,
     # parameters
     c(
         list(
-            res = rss_model(
-                parlist, # generated in "res_fn"
+            residuals = rss_model(
+                par_list,
                 data_fit,
                 model_expr,
-                errmodel_expr,
+                error_model_expr,
                 constraint_expr,
-                jac_model_expr,
-                jac_errmodel_expr,
-                deriv = deriv
+                model_jacobian_expr,
+                error_model_jacobian_expr,
+                calculate_derivative = calculate_derivative
             )
         ),
-        parlist
+        par_list
     )
+}
+
+
+
+# rss_model() -------------------------------------------------------------
+
+#' Calculate model residual sum of squares
+#'
+#' @return list of residuals
+#'
+#' @noRd
+rss_model <- function(
+    par_list,
+    data_fit,
+    model_expr,
+    error_model_expr,
+    constraint_expr,
+    model_jacobian_expr,
+    error_model_jacobian_expr,
+    calculate_derivative = TRUE) {
+    # First argument: data, second argument: expressions which are evalued with
+    # the data of arg 1
+
+    if (FALSE) {
+        name <- as.list(data_fit)$name
+        time <- as.list(data_fit)$time
+        value <- as.list(data_fit)$value
+        sigma <- as.list(data_fit)$sigma
+        fixed <- as.list(data_fit)$fixed
+        latent <- as.list(data_fit)$latent
+        error <- as.list(data_fit)$error
+        yi <- par_list$ys
+        sj <- par_list$sj
+        sigmaR <- par_list$sigmaR
+        calculate_derivative = TRUE
+    }
+    with(
+        # Gives list with entries: name, time, value, sigma, fixed, latent, error,
+        # ys, sj, sigmaR, the last three are from "parlist".
+        c(as.list(data_fit), par_list),
+        {
+            # Generates list with entry <NoOfMeasurements> x 1 as entries, save
+            # this list as "var" and initialize the "prediction" list with it
+            prediction <- var <- rep(1, length(value))
+
+            # Get the prediction by evaluating the model
+            prediction[seq_along(prediction)] <- eval(model_expr)
+
+            # Create residuals: differences between prediction and measurements
+            res <- prediction - value
+
+            # Generate variances by squaring the evaluated error model
+            var[seq_along(var)] <- eval(error_model_expr)^2
+
+            # Evaluate constraints
+            constr <- eval(constraint_expr)
+
+            # Create list of residuals
+            residuals <- c(res / sqrt(var), var, constr)
+
+            # Initialize variables for derivatives
+            residual_deriv <- variance_deriv <- NULL
+
+            # Calculate derivatives if wished
+            if (calculate_derivative) {
+                jac <- lapply(
+                    seq_len(length(par_list)),
+                    function(k) {
+                        # Initialize lists
+                        v_mod <- v_err <- rep(0, length(value))
+
+                        # Get derivatives for model and errormodel
+                        v_mod[seq_len(length(value))] <- eval(model_jacobian_expr[[k]])
+                        v_err[seq_len(length(value))] <- eval(error_model_jacobian_expr[[k]])
+
+                        residual_deriv <- v_mod / sqrt(var) - v_err * res / var
+                        variance_deriv <- v_err * 2 * sqrt(var)
+                        list(residual_deriv, variance_deriv)
+                    }
+                )
+
+                residual_deriv <- lapply(jac, function(j) j[[1]])
+                variance_deriv <- lapply(jac, function(j) j[[2]])
+            }
+            attr(residuals, "residual_deriv") <- residual_deriv
+            attr(residuals, "variance_deriv") <- variance_deriv
+
+            return(residuals)
+        }
+    )
+}
+
+
+# objective_function() ----------------------------------------------------
+
+#' Objective function for trust region optimizer
+#'
+objective_function <- function(current_parameters,
+                               fit_pars_distinguish,
+                               calculate_derivative = TRUE,
+                               data_fit = data_fit,
+                               parameters = parameters,
+                               levels_list = levels_list,
+                               effects_pars = effects_pars,
+                               c_strength = c_strength,
+                               mask = mask) {
+
+    if (FALSE) {
+        current_parameters <- initial_parameters
+        calculate_derivative = TRUE
+    }
+    no_data <- nrow(data_fit)
+
+    # Recover residuals from output of res_fn()
+    calculated_residuals <- residual_function(
+        current_parameters = current_parameters,
+        fit_pars_distinguish = fit_pars_distinguish,
+        calculate_derivative = calculate_derivative,
+        parameters = parameters,
+        levels_list = levels_list,
+        effects_pars = effects_pars)$residuals
+
+    # Retrieve residuals of model, errormodel and constraint as well as
+    # the derivatives.
+    residuals <- calculated_residuals[1:no_data]
+    variances <- calculated_residuals[(no_data + 1):(2 * no_data)]
+    constraint <- calculated_residuals[2 * no_data + 1]
+    residual_deriv <- attr(calculated_residuals, "residual_deriv")
+    variance_deriv <- attr(calculated_residuals, "variance_deriv")
+
+    # Set bessel correction factor to 1
+    bessel <- 1
+
+    # Calculate the current value
+    value <- sum(residuals^2) + bessel * sum(log(variances)) + constraint^2
+    gradient <- NULL
+    hessian <- NULL
+
+    # Get derivatives for the measurements by applying the predefined mask
+    if (calculate_derivative) {
+        calculated_residuals_jacobian <- do.call(cbind, lapply(
+            seq_along(current_parameters),
+            function(k) {
+
+                # Get the "class" (fixed, latent, or error) of the current k'th
+                # parameter
+                which_par <- match(names(current_parameters)[k], parameters)
+
+                # Apply the mask to the residuals
+                residual_jacobian <- residual_deriv[[which_par]] * mask[[k]]
+                variance_jacobian <- variance_deriv[[which_par]] * mask[[k]]
+                constrain_jacobian <- as.numeric(names(current_parameters[k]) ==
+                                             parameters["distinguish"]) * c_strength / length(levels_list[[1]])
+
+                # Convert to log if wanted
+                if (input_scale == "log") {
+                    constrain_jacobian <- constrain_jacobian * exp(current_parameters[k])
+                } else if (input_scale == "log2") {
+                    constrain_jacobian <- constrain_jacobian * 2^(current_parameters[k])
+                } else if (input_scale == "log10") {
+                    constrain_jacobian <- constrain_jacobian * 10^(current_parameters[k])
+                }
+
+                # Stitch the results together
+                c(residual_jacobian, variance_jacobian, constrain_jacobian)
+            }
+        ))
+
+        # Split the above list into corresponding parts
+        residual_jacobian <- calculated_residuals_jacobian[1:no_data, , drop = FALSE]
+        jac_vars <- calculated_residuals_jacobian[
+            (no_data + 1):(2 * no_data), ,
+            drop = FALSE
+        ]
+        constrain_jacobian <- calculated_residuals_jacobian[2 * no_data + 1, , drop = FALSE]
+
+        # Compose to gradient vector and hessian matrix
+        gradient <- as.vector(2 * residuals %*% residual_jacobian +
+                                  (bessel / variances) %*% jac_vars + 2 * constraint * constrain_jacobian)
+        hessian <- 2 * t(rbind(residual_jacobian, constrain_jacobian)) %*%
+            (rbind(residual_jacobian, constrain_jacobian))
+    }
+
+    # Takes residual (ultimative res <- prediction - value and res / sqrt(var)
+    # from rss_model()) to retrive the presdiction
+    prediction <- residuals * sqrt(variances) + data_fit$value
+
+    # Calculate errors
+    sigma <- sqrt(variances)
+
+    # Compose all of the above to one list
+    list(
+        value = value, gradient = gradient, hessian = hessian,
+        prediction = prediction, sigma = sigma
+    )
+}
+
+
+# evaluate_model() --------------------------------------------------------
+
+#' Model evaluation method
+#'
+#' @noRd
+#'
+
+evaluate_model <- function(initial_parameters,
+                           par_list
+                           # = calculated_residuals[-1],
+                           # effects_pars = effects_pars,
+                           # model_expr = model_expr,
+                           # data_fit = data_fit
+                           ) {
+    # Create a list with with values from 1 to the number of parameters
+    distinguish <- seq_along(initial_parameters)
+
+    # Generate a list with the entries:
+    #   parameters, the sequence saved generated as "fixed", name, time,
+    #   value, sigma, fixed, latent, error, ys, sj, sigmaR
+    my_list <- c(
+        list(initial_parameters, distinguish = distinguish), as.list(data_fit),
+        par_list
+    )
+    names(my_list)[1] <- effects_pars[[1]][1]
+    # to evlaluate manually
+    # yi <- my_list$yi
+    # fixed <- my_list$fixed
+    # name <- my_list$name
+    # time <- my_list$time
+    # value <- my_list$value
+    # sigma <- my_list$sigma
+    # distinguish <- my_list$distinguish
+    # scaling <- my_list$scaling
+    # error <- my_list$error
+    # yi <- my_list$yi
+    # sj <- my_list$sj
+    # sigmaR <- my_list$sigmaR
+    values <- with(my_list, eval(model_expr) - data_fit$value)
+
+    return(values)
+}
+
+
+
+# evaluate_model_jacobian() -----------------------------------------------
+
+#' Model jacobian evaluation method
+#'
+#' @noRd
+#'
+
+evaluate_model_jacobian <- function(initial_parameters,
+                                    par_list
+                                    # ,
+                                    # effects_pars = effects_pars,
+                                    # model_expr = model_expr,
+                                    # data_fit = data_fit
+                                    ) {
+    distinguish <- seq_along(initial_parameters)
+    my_list <- c(
+        list(initial_parameters, distinguish = distinguish), as.list(data_fit),
+        par_list
+    )
+    names(my_list)[1] <- effects_pars[[1]][1]
+    derivative_values <- with(my_list, eval(model_derivertive_expr))
+
+    return(derivative_values)
 }

@@ -102,11 +102,26 @@ align_me <- function(data,
                      verbose = FALSE,
                      normalize_input = TRUE) {
     if (FALSE) {
-        sim_data_wide_file <- system.file(
-            "extdata", "sim_data_wide.csv",
-            package = "blotIt3"
-        )
-        data <- read_wide(sim_data_wide_file, description = seq_len(3))
+        if (TRUE) {
+            sim_data_wide_file <- system.file(
+                "extdata", "sim_data_wide.csv",
+                package = "blotIt3"
+            )
+            data <- read_wide(sim_data_wide_file, description = seq_len(3))
+        } else {
+            data <- read_wide(
+                file = paste0(
+                    "/home/severin/Documents/PhD/Projects/R/WesternblotDataSim",
+                    "/data/2021-03-04_AS-E2_cells_Time_course_data.csv"
+                ),
+                description = 1:7,
+                sep = ",",
+                dec = "."
+            )
+            data <- data[c(1,2,7,8,9)]
+            names(data) <- c("time", "condition", "ID", "name", "value")
+        }
+
         model <- "yi / sj"
         error_model <- "value * sigmaR"
         distinguish <- yi ~ name + time + condition
@@ -333,6 +348,7 @@ align_me <- function(data,
     model_expr <- parse(text = model)
     model_derivertive_expr <- parse(text = model_derivertive)
     error_model_expr <- parse(text = error_model)
+
     model_jacobian_expr <- lapply(
         model_jacobian,
         function(myjac) parse(text = myjac)
@@ -341,4 +357,30 @@ align_me <- function(data,
         error_model_jacobian,
         function(myjac) parse(text = myjac)
     )
+
+
+
+    scale_target(
+        1,
+        to_be_scaled,
+        effects_values,
+        average_techn_rep,
+        input_scale,
+        targets
+    )
+
+    # generate the fits
+    out <- lapply(
+        seq_along(to_be_scaled),
+        scale_target(
+            i,
+            to_be_scaled,
+            effects_values,
+            average_techn_rep,
+            input_scale,
+            targets
+        ),
+
+    )
+
 }
