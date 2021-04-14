@@ -141,13 +141,17 @@ align_me <- function(data,
         error = error
     )
 
-    scaling_values <- effects$effects_values$scaling_values
-    distinguish_values <- effects$effects_values$distinguish_values
-    error_values <- effects$effects_values$error_values
+    effects_values <- effects$effects_values
+    effects_pars <- effects$effects_pars
 
-    scaling_pars <- effects$effects_pars$scaling_pars
-    distinguish_pars <- effects$effects_pars$distinguish_pars
-    error_pars <- effects$effects_pars$error_pars
+
+    # distinguish_values <- effects$effects_values$distinguish_values
+    # scaling_values <- effects$effects_values$scaling_values
+    # error_values <- effects$effects_values$error_values
+    #
+    # distinguish_pars <- effects$effects_pars$distinguish_pars
+    # scaling_pars <- effects$effects_pars$scaling_pars
+    # error_pars <- effects$effects_pars$error_pars
 
     ## prepare data
     data <- as.data.frame(data)
@@ -156,8 +160,7 @@ align_me <- function(data,
 
     to_be_scaled <- split_for_scaling(
         data,
-        distinguish_values,
-        scaling_values,
+        effects_values,
         normalize_input,
         input_scale
     )
@@ -169,7 +172,7 @@ align_me <- function(data,
     # Include the normalization term as a constraint if saied so in the function
     # call
     if (normalize) {
-        constraint <- paste("1e3 * (mean(", distinguish_pars[1], ") - 1)")
+        constraint <- paste("1e3 * (mean(", effects_pars[1][1], ") - 1)")
         c_strength <- 1000
     } else {
         constraint <- "0"
@@ -181,11 +184,11 @@ align_me <- function(data,
     covariates <- union(
         get_symbols(
             model,
-            exclude = c(distinguish_pars, scaling_pars, error_pars)
+            exclude = c(effects_pars[1], effects_pars[2], effects_pars[3])
         ),
         get_symbols(
             error_model,
-            exclude = c(distinguish_pars, scaling_pars, error_pars)
+            exclude = c(effects_pars[1], effects_pars[2], effects_pars[3])
         )
     )
     cat("Covariates:", paste(covariates, sep = ", "), "\n")
@@ -193,7 +196,13 @@ align_me <- function(data,
     # Check if parameters from (error-) model and passed expressions coincide
     if (
         length(
-            setdiff(c(distinguish_pars, scaling_pars, error_pars), parameters)
+            setdiff(
+                c(
+                    effects_pars[1],
+                    effects_pars[2],
+                    effects_pars[3]
+                    ),
+                parameters)
         ) > 0
     ) {
         stop("Not all paramters are defined in either arguments
@@ -201,9 +210,9 @@ align_me <- function(data,
     }
 
     # Name the respective parameters fixed, latent and error
-    names(parameters)[parameters %in% distinguish_pars] <- "distinguish"
-    names(parameters)[parameters %in% scaling_pars] <- "scaling"
-    names(parameters)[parameters %in% error_pars] <- "error"
+    names(parameters)[parameters %in% effects_pars[1]] <- "distinguish"
+    names(parameters)[parameters %in% effects_pars[2]] <- "scaling"
+    names(parameters)[parameters %in% effects_pars[3]] <- "error"
 
     # parse error model by replacing the "value" by the model
     error_model <- replace_symbols(
@@ -270,7 +279,7 @@ align_me <- function(data,
 
     # Calculating the derivative
     model_derivertive <- deparse(
-        D(parse(text = model), name = distinguish_pars[1])
+        D(parse(text = model), name = effects_pars[[1]][1])
     )
 
     # Calculating the (error) model jacobian

@@ -92,7 +92,7 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 #' individual scaling factor.
 #'
 #' @param data data frame with columns "name", "time", "value" and others
-#' @param distinguish two-sided formula, see \link{align_me}
+#' @param effects_values two-sided formula, see \link{align_me}
 #' @param scaling two-sided formula, see \link{align_me}
 #' @param normalize_input logical, if set to TRUE, the input data will be
 #' normalized by dividing all entries belonging to one scaling factor by their
@@ -102,8 +102,7 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 #'
 #' @noRd
 split_for_scaling <- function(data,
-                              distinguish_values,
-                              scaling_values,
+                              effects_values,
                               normalize_input,
                               input_scale) {
     if (!"1" %in% colnames(data)) {
@@ -114,8 +113,8 @@ split_for_scaling <- function(data,
     }
 
     # Construnct strings containing the values of the respective effects
-    scaling_strings <- Reduce(paste_, data[scaling_values])
-    distinguish_strings <- Reduce(paste_, data[distinguish_values])
+    scaling_strings <- Reduce(paste_, data[effects_values[[2]]])
+    distinguish_strings <- Reduce(paste_, data[effects_values[[1]]])
 
     scaling_strings_unique <- unique(scaling_strings)
     distinguish_strings_unique <- unique(distinguish_strings)

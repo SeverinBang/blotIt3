@@ -43,12 +43,29 @@ test_that("split_for_scaling()", {
     )
     sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
 
+    effects_values <- list(
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = c("name", "ID"),
+        error_values = "name"
+    )
+
+    effects_values_1 <- list(
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = c("name"),
+        error_values = "name"
+    )
+
+    effects_values_2 <- list(
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = c("ID"),
+        error_values = "name"
+    )
+
     expect_equal(
         length(
             split_for_scaling(
                 data = sim_data_long,
-                distinguish_values = c("name", "time", "condition"),
-                scaling_values = c("name", "ID"),
+                effects_values,
                 input_scale = "linear",
                 normalize_input = TRUE
             )
@@ -60,8 +77,7 @@ test_that("split_for_scaling()", {
         length(
             split_for_scaling(
                 data = sim_data_long,
-                distinguish_values = c("name", "time", "condition"),
-                scaling_values = "name",
+                effects_values_1,
                 input_scale = "linear",
                 normalize_input = TRUE
             )
@@ -73,8 +89,7 @@ test_that("split_for_scaling()", {
         length(
             split_for_scaling(
                 data = sim_data_long,
-                distinguish_values = c("name", "time", "condition"),
-                scaling_values = "ID",
+                effects_values_2,
                 input_scale = "linear",
                 normalize_input = TRUE
             )
@@ -85,8 +100,7 @@ test_that("split_for_scaling()", {
     expect_warning(
         split_for_scaling(
             data = sim_data_long,
-            distinguish_values = c("name", "time", "condition"),
-            scaling_values = c("name", "ID"),
+            effects_values_2,
             input_scale = "log2",
             normalize_input = TRUE
         ),

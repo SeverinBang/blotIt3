@@ -165,28 +165,30 @@ test_that("generate_initial_pars()", {
         "scaling" = "sj",
         "error" = "sigmaR"
     )
-    distinguish_levels <- c(
-        "distinguish_1",
-        "distinguish_2",
-        "distinguish_3",
-        "distinguish_4",
-        "distinguish_5",
-        "distinguish_6",
-        "distinguish_7"
+
+    levels_list <- list(
+        distinguish = c(
+            "distinguish_1",
+            "distinguish_2",
+            "distinguish_3",
+            "distinguish_4",
+            "distinguish_5",
+            "distinguish_6",
+            "distinguish_7"
+        ),
+        scaling = c(
+            "scaling_1",
+            "scaling_2"
+        ),
+        error = "error1"
     )
-    scaling_levels <- c(
-        "scaling_1",
-        "scaling_2"
-    )
-    error_levels <- "error1"
+
 
     expect_equal(
         generate_initial_pars(
             parameters = parameters,
             input_scale = "linear",
-            distinguish_levels,
-            scaling_levels,
-            error_levels
+            levels_list
         ),
         c(
             "yi" = 1,
@@ -206,9 +208,7 @@ test_that("generate_initial_pars()", {
         generate_initial_pars(
             parameters = parameters,
             input_scale = "log",
-            distinguish_levels,
-            scaling_levels,
-            error_levels
+            levels_list
         ),
         c(
             "yi" = 0,
@@ -228,9 +228,7 @@ test_that("generate_initial_pars()", {
         generate_initial_pars(
             parameters = parameters,
             input_scale = "log2",
-            distinguish_levels,
-            scaling_levels,
-            error_levels
+            levels_list
         ),
         c(
             "yi" = 0,
@@ -250,13 +248,18 @@ test_that("generate_initial_pars()", {
         generate_initial_pars(
             parameters = parameters,
             input_scale = "log2",
-            distinguish_levels = c(
+            levels_list = list(
+                distinguish = c(
                 "pAKT_0_0Uml Epo",
                 "pAKT_5_0Uml Epo",
                 "pAKT_10_0Uml Epo"
-            ),
-            scaling_levels,
-            error_levels
+                ),
+                scaling = c(
+                    "scaling_1",
+                    "scaling_2"
+                ),
+                error = "error1"
+            )
         ),
         c(
             "yi" = 0,
@@ -272,20 +275,22 @@ test_that("generate_initial_pars()", {
         generate_initial_pars(
             parameters = parameters,
             input_scale = "linear",
-            distinguish_levels = c(
-                "distinguish_a",
-                "distinguish_b",
-                "distinguish_c"
-            ),
-            scaling_levels = c(
-                "scaling_a",
-                "scaling_b",
-                "scaling_c"
-            ),
-            error_levels = c(
-                "error_a",
-                "error_b",
-                "error_c"
+            levels_list = list(
+                distinguish = c(
+                    "distinguish_a",
+                    "distinguish_b",
+                    "distinguish_c"
+                ),
+                scaling = c(
+                    "scaling_a",
+                    "scaling_b",
+                    "scaling_c"
+                ),
+                error = c(
+                    "error_a",
+                    "error_b",
+                    "error_c"
+                )
             )
         ),
         c(

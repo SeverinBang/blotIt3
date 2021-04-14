@@ -283,9 +283,8 @@ input_check <- function(data = NULL,
 #' \link{objective_function}.
 #'
 #' @param current_data current data set, belongs to one scale.
-#' @param scaling_values names of the columns defined as scaling effects
-#' @param distinguish_values names of columns defined as destinguishable effects
-#' @param error_values names of the columns defined as error effects
+#' @param effects_values list of names of the columns defined as distinguish,
+#' scaling and error effects, respectively
 #' @param average_techn_rep logical, indicates if the technical replicates
 #' @param input_scale character, defining in which scale the input is passed.
 #' must be one of c('linear', 'log', 'log2', 'log10')
@@ -297,9 +296,7 @@ input_check <- function(data = NULL,
 #' @noRd
 
 scale_target <- function(current_data,
-                         scaling_values,
-                         distinguish_values,
-                         error_values,
+                         effects_values,
                          average_techn_rep,
                          input_scale) {
     # developement helper only
@@ -318,11 +315,11 @@ scale_target <- function(current_data,
 
     # Build a list of string of distinguish/scaling values present
     data_fit_distinguish <- do.call(
-        paste_, current_data[, distinguish_values, drop = FALSE]
+        paste_, current_data[, effects_values[[1]], drop = FALSE]
     )
 
     data_fit_scaling <- do.call(
-        paste_, current_data[, scaling_values, drop = FALSE]
+        paste_, current_data[, effects_values[[2]], drop = FALSE]
     )
 
     # Reducing datapoints
@@ -360,23 +357,29 @@ scale_target <- function(current_data,
         ],
         distinguish = do.call(
             paste_,
-            current_data[, distinguish_values, drop = FALSE]
+            current_data[, effects_values[[1]], drop = FALSE]
         ),
         scaling = do.call(
             paste_,
-            current_data[, scaling_values, drop = FALSE]
+            current_data[, effects_values[[2]], drop = FALSE]
         ),
         error = do.call(
             paste_,
-            current_data[, error_values, drop = FALSE]
+            current_data[, effects_values[[3]], drop = FALSE]
         ),
         stringsAsFactors = FALSE
     )
 
     # Retrieve (unique) list of distinguish, scaling and error values
-    distinguish_levels <- unique(as.character(data_fit$distinguish))
-    scaling_levels <- unique(as.character(data_fit$scaling))
-    error_levels <- unique(as.character(data_fit$error))
+    # levels_list[[1]] <- unique(as.character(data_fit$distinguish))
+    # levels_list[[2]] <- unique(as.character(data_fit$scaling))
+    # levels_list[[3]] <- unique(as.character(data_fit$error))
+
+    levels_list <- list(
+        distinguish = unique(as.character(data_fit$distinguish)),
+        scaling = unique(as.character(data_fit$scaling)),
+        error = unique(as.character(data_fit$error))
+    )
 
     # Combine above lists all_levels will therefore have the length of the
     # sum of all different distinguish, scaling and error values (in that order)
@@ -385,9 +388,9 @@ scale_target <- function(current_data,
             seq_along(parameters),
             function(k) {
                 switch(names(parameters)[k],
-                    distinguish = distinguish_levels,
-                    scaling = scaling_levels,
-                    error = error_levels
+                    distinguish = levels_list[[1]],
+                    scaling = levels_list[[2]],
+                    error = levels_list[[3]]
                 )
             }
         )
@@ -396,9 +399,7 @@ scale_target <- function(current_data,
     initial_parameters <- generate_initial_pars(
         parameters,
         input_scale,
-        distinguish_levels,
-        scaling_levels,
-        error_levels
+        levels_list
     )
 
     mask <- generate_mask(
@@ -407,6 +408,8 @@ scale_target <- function(current_data,
         all_levels,
         data_fit
     )
+
+    fit_pars_distinguish <- NULL
 }
 
 
@@ -419,9 +422,7 @@ scale_target <- function(current_data,
 
 generate_initial_pars <- function(parameters,
                                   input_scale,
-                                  distinguish_levels,
-                                  scaling_levels,
-                                  error_levels) {
+                                  levels_list) {
     # Create a named vector with initial values for all parameters. The name
     # is the parameter, and the initial value is 0 for log and 1 for linear.
     # each parameter name-value entry is repeated as many times as there are
@@ -445,9 +446,9 @@ generate_initial_pars <- function(parameters,
                 l <- switch(
                     # Get "distinguish", "scaling" or "error" from the current n
                     names(parameters)[n],
-                    distinguish = length(distinguish_levels),
-                    scaling = length(scaling_levels),
-                    error = length(error_levels)
+                    distinguish = length(levels_list[[1]]),
+                    scaling = length(levels_list[[2]]),
+                    error = length(levels_list[[3]])
                 )
 
                 # Get the n'th parameter
@@ -476,6 +477,9 @@ generate_initial_pars <- function(parameters,
 #' A list with one element per entry in initial_parameters is generated. For
 #' each of those elements, it is checked which elements of the data set
 #' \code{data_fit} coincides with the current element of \code{all_levels}.
+#' The entry is a list with 1 indicating where the current element of
+#' \code{all_levels} is found in the respective effect-column of
+#' \code{data_fit}.
 #' Keep in mind, that the \code{initial_parameters} and \code{all_levels} are
 #' structured analogue.
 #'
@@ -508,5 +512,74 @@ generate_mask <- function(initial_parameters,
             )
             return(mask_vector)
         }
+    )
+}
+
+
+
+# residual_function() -----------------------------------------------------
+
+#' Calculate residuals for optimization
+#'
+#' Residuals of model evaluations for a set of \code{test_parameters} and
+#' \code{fit_pars_distinguish} are calculated by evaluation of \link{rss_model}.
+#'
+#' @param test_parameters named vector of vectors to be tested currently
+#' @param  fit_pars_distinguish named vector that will contain the fitted values
+#' of the distinguish parameters.
+#'
+#' @return large list
+#'
+#' @noRd
+residual_function <- function(test_parameters,
+                              fit_pars_distinguish,
+                              parameters,
+                              levels_list,
+                              effects_pars,
+                              deriv = TRUE) {
+    if (FALSE) {
+        test_parameters <- initial_parameters
+        fit_pars_distinguish <- NULL
+    }
+    pars_all <- c(test_parameters, fit_pars_distinguish)
+    par_list <- lapply(
+        parameters,
+        function(n) {
+            subpar <- pars_all[names(pars_all) == n]
+            if (n %in% effects_pars[1]) {
+                # Rename entries of the first list (fixed)
+                names(subpar) <- levels_list[[1]]
+            }
+            if (n %in% effects_pars[2]) {
+                # Rename entries of the second list (latent)
+                names(subpar) <- levels_list[[2]]
+            }
+            if (n %in% effects_pars[3]) {
+                # Rename entries of the third list (error)
+                names(subpar) <- levels_list[[3]]
+            }
+            return(subpar)
+        }
+    )
+
+    # Rename the thre lists
+    names(par_list) <- parameters
+
+    # Create list of residuals and attach the corresponding current
+    # parameters
+    c(
+        list(
+            res = rss_model(
+                parlist, # generated in "res_fn"
+                data_fit,
+                model_expr,
+                errmodel_expr,
+                constraint_expr,
+                jac_model_expr,
+                jac_errmodel_expr,
+                deriv = deriv
+            )
+        ),
+        parlist
     )
 }
