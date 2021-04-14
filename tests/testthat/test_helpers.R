@@ -250,9 +250,9 @@ test_that("generate_initial_pars()", {
             input_scale = "log2",
             levels_list = list(
                 distinguish = c(
-                "pAKT_0_0Uml Epo",
-                "pAKT_5_0Uml Epo",
-                "pAKT_10_0Uml Epo"
+                    "pAKT_0_0Uml Epo",
+                    "pAKT_5_0Uml Epo",
+                    "pAKT_10_0Uml Epo"
                 ),
                 scaling = c(
                     "scaling_1",

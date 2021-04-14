@@ -144,15 +144,6 @@ align_me <- function(data,
     effects_values <- effects$effects_values
     effects_pars <- effects$effects_pars
 
-
-    # distinguish_values <- effects$effects_values$distinguish_values
-    # scaling_values <- effects$effects_values$scaling_values
-    # error_values <- effects$effects_values$error_values
-    #
-    # distinguish_pars <- effects$effects_pars$distinguish_pars
-    # scaling_pars <- effects$effects_pars$scaling_pars
-    # error_pars <- effects$effects_pars$error_pars
-
     ## prepare data
     data <- as.data.frame(data)
 
@@ -201,8 +192,9 @@ align_me <- function(data,
                     effects_pars[1],
                     effects_pars[2],
                     effects_pars[3]
-                    ),
-                parameters)
+                ),
+                parameters
+            )
         ) > 0
     ) {
         stop("Not all paramters are defined in either arguments

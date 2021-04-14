@@ -371,10 +371,6 @@ scale_target <- function(current_data,
     )
 
     # Retrieve (unique) list of distinguish, scaling and error values
-    # levels_list[[1]] <- unique(as.character(data_fit$distinguish))
-    # levels_list[[2]] <- unique(as.character(data_fit$scaling))
-    # levels_list[[3]] <- unique(as.character(data_fit$error))
-
     levels_list <- list(
         distinguish = unique(as.character(data_fit$distinguish)),
         scaling = unique(as.character(data_fit$scaling)),
