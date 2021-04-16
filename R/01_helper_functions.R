@@ -54,6 +54,20 @@ identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
     scaling_values <- get_symbols(as.character(scaling)[3])
     error_values <- get_symbols(as.character(error)[3])
 
+    # Add intercepts
+    if (attr(terms(distinguish), "intercept") != 0 &
+        length(distinguish_values) == 2) {
+        distinguish_values <- c(distinguish_values, "1")
+    }
+    if (attr(terms(scaling), "intercept") != 0 &
+             length(scaling_values) == 1) {
+        scaling_values <- c(scaling_values, "1")
+    }
+    if (attr(terms(error), "intercept") != 0 &
+        length(error_values) == 1) {
+        error_values <- c(error_values, "1")
+    }
+
     # Determine to which class parameters belong
     distinguish_pars <- get_symbols(as.character(distinguish)[2])
     scaling_pars <- get_symbols(as.character(scaling)[2])
@@ -295,22 +309,34 @@ input_check <- function(data = NULL,
 #'
 #' @noRd
 
-scale_target <- function(i) {
+scale_target <- function(
+    current_data,
+    pass_parameter_list
+) {
     # developement helper only
     if (FALSE) {
-        i = 1
-
-        # ,
-        # to_be_scaled,
-        # effects_values,
-        # average_techn_rep,
-        # input_scale,
-        # targets
-
+        current_data <- to_be_scaled[[1]]
     }
 
+    # Retrieve parameters from list
+    effects_values <- pass_parameter_list$effects_values
+    parameter_data <- pass_parameter_list$parameter_data
+    average_techn_rep <- pass_parameter_list$average_techn_rep
+    verbose <- pass_parameter_list$verbose
+    covariates <- pass_parameter_list$covariates
+    parameters <- pass_parameter_list$parameters
+    input_scale <- pass_parameter_list$input_scale
+    effects_pars <- pass_parameter_list$effects_pars
+    model_expr <- pass_parameter_list$model_expr
+    error_model_expr <- pass_parameter_list$error_model_expr
+    constraint_expr <- pass_parameter_list$constraint_expr
+    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
+    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
+    c_strength <- pass_parameter_list$c_strength
+    normalize <- pass_parameter_list$normalize
 
-    current_data <- to_be_scaled[[i]]
+
+    current_name <- unique(current_data$name)
 
     # Add column for error
     current_data$sigma <- NaN
@@ -320,6 +346,13 @@ scale_target <- function(i) {
 
     # Initialize the parameter for the current target
     current_parameter <- NULL
+
+    if (!is.null(parameter_data)) {
+        current_parameter <- parameter_data[
+            parameter_data$name %in% current_data$name,
+            ]
+    }
+
 
     # Build a list of string of distinguish/scaling values present
     data_fit_distinguish <- do.call(
@@ -399,13 +432,13 @@ scale_target <- function(i) {
             }
         )
     )
-
+#
     initial_parameters <- generate_initial_pars(
         parameters,
         input_scale,
         levels_list
     )
-
+#
     mask <- generate_mask(
         initial_parameters,
         parameters,
@@ -419,33 +452,58 @@ scale_target <- function(i) {
         cat("Starting fit\n")
     }
 
+    pass_parameter_list2  <-  list(
+        data_fit = data_fit,
+        levels_list = levels_list,
+        fit_pars_distinguish = fit_pars_distinguish,
+        parameters = parameters,
+        effects_pars = effects_pars,
+        c_strength = c_strength,
+        mask = mask,
+        initial_parameters = initial_parameters
+    )
+
+# * call of trust() function ----------------------------------------------
+
+
     fit_result <- trust::trust(
         objfun =  objective_function,
         parinit = initial_parameters,
         rinit = 1,
         rmax = 10,
         blather = verbose,
-        # folowing: additional parameters for objective_function()
-        fit_pars_distinguish = fit_pars_distinguish,
-        calculate_derivative = TRUE,
-        data_fit = data_fit,
-        parameters = parameters,
-        levels_list = levels_list,
-        effects_pars = effects_pars,
-        c_strength = c_strength
+        # # folowing: additional parameters for objective_function()
+        # fit_pars_distinguish = fit_pars_distinguish,
+        # calculate_derivative = TRUE,
+        # data_fit = data_fit,
+        # parameters = parameters,
+        # levels_list = levels_list,
+        # effects_pars = effects_pars,
+        # mask = mask,
+        # c_strength = c_strength,
+        # model_expr = model_expr,
+        # error_model_expr = error_model_expr,
+        # constraint_expr = constraint_expr,
+        # model_jacobian_expr = model_jacobian_expr,
+        # error_model_jacobian_expr = error_model_jacobian_expr,
+        # input_scale = input_scale
+        # # parameterlists
+        pass_parameter_list = pass_parameter_list,
+        pass_parameter_list2 = pass_parameter_list2
     )
 
     if (!fit_result$converged) {
-        warning(paste("Non-converged fit for target", targets[i]))
+        warning(paste("Non-converged fit for target", current_name))
+    } else {
+        cat("Fit converged.\n")
     }
 
     residuals_fit <- residual_function(
         current_parameters =  fit_result$argument,
-        fit_pars_distinguish =  fit_pars_distinguish,
-        parameters = parameters,
-        levels_list = levels_list,
-        effects_pars = effects_pars,
-        calculate_derivative = FALSE)
+        pass_parameter_list = pass_parameter_list,
+        pass_parameter_list2 = pass_parameter_list2,
+        calculate_derivative = FALSE
+        )
 
     bessel <- sqrt(
         nrow(data_fit) / (nrow(data_fit) - length(initial_parameters) + normalize)
@@ -469,7 +527,7 @@ scale_target <- function(i) {
 
     # Generate parameter table
     parameter_table <- data.frame(
-        name = targets[i],
+        name = current_name,
         level = c(
             rep(levels_list[[1]], length(effects_pars[[1]])),
             rep(levels_list[[2]], length(effects_pars[[2]])),
@@ -521,19 +579,33 @@ scale_target <- function(i) {
     out_predicted$value <- fit_result$prediction
 
     # Initialize list for scaled values
-    values_scaled <- rep(0, nrow(data_fit))
+    initial_values_scaled <- rep(0, nrow(data_fit))
     if (verbose) {
         cat("Inverting model ... ")
     }
+
+
+    # rootSolve::multiroot(
+    #     f = evaluate_model,
+    #     start = initial_values_scaled,
+    #     jacfunc = evaluate_model_jacobian,
+    #     par_list = residuals_fit[-1],
+    #     verbose = TRUE,
+    #     pass_parameter_list = pass_parameter_list,
+    #     pass_parameter_list2 = pass_parameter_list2
+    # )
+    # print("DEEEBUG")
 
     values_scaled <- try(
         # my_multiroot
         rootSolve::multiroot(
             f = evaluate_model,
-            start = values_scaled,
+            start = initial_values_scaled,
             jacfunc = evaluate_model_jacobian,
             par_list = residuals_fit[-1],
-            verbose = F
+            verbose = FALSE,
+            pass_parameter_list = pass_parameter_list,
+            pass_parameter_list2 = pass_parameter_list2
         )$root,
         silent = TRUE
     )
@@ -546,7 +618,14 @@ scale_target <- function(i) {
         warning("Rescaling to common scale not possible.
                   Equations not invertible.")
     } else {
-        my_deriv <- abs(evaluate_model_jacobian(values_scaled, residuals_fit[-1]))
+        my_deriv <- abs(
+            evaluate_model_jacobian(
+                values_scaled,
+                residuals_fit[-1],
+                pass_parameter_list = pass_parameter_list,
+                pass_parameter_list2 = pass_parameter_list2
+            )
+        )
         sigmas_scaled <- fit_result$sigma * bessel / my_deriv
         if (input_scale == "log") {
             values_scaled <- exp(values_scaled)
@@ -563,8 +642,8 @@ scale_target <- function(i) {
         out_scaled$sigma <- sigmas_scaled
     }
 
-    # Averaged
-    nini <- length(levels_list[[1]])
+    # Aligned
+    no_initial <- length(levels_list[[1]])
 
     # Use one datapoint per unique set of fixed parameters
     out_aligned <- current_data[
@@ -583,36 +662,32 @@ scale_target <- function(i) {
         out_aligned$value <- 10^(out_aligned$value)
     }
 
-    # The sigmas are calculated the same way as above.
+    # The sigmas are calculated by evaluating the fisher information matrix
     out_aligned$sigma <- as.numeric(
         sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
-    )[1:nini] * bessel
-    if (input_scale == "log") {
-        out_aligned$sigma <- out_aligned$value * out_aligned$sigma
-    } else if (input_scale == "log2") {
-        out_aligned$sigma <- out_aligned$value * out_aligned$sigma
-    } else if (input_scale == "log10") {
+    )[seq_len(no_initial)] * bessel
+    if (input_scale != "linear") {
         out_aligned$sigma <- out_aligned$value * out_aligned$sigma
     }
 
 
     # Get the original data
-    out_original <- current_data
+    out_original_with_parameters <- current_data
     for (k in seq_along(parameters)) {
         effect <- names(parameters)[k]
         my_levels <- as.character(data_fit[[effect]])
         index0 <- which(as.character(parameter_table$parameter) == parameters[k])
         index1 <- match(my_levels, as.character(parameter_table$level[index0]))
         index <- index0[index1]
-        out_original[[parameters[k]]] <- parameter_table$value[index]
+        out_original_with_parameters[[parameters[k]]] <- parameter_table$value[index]
     }
     out <- list(
-        "prediction" = out_predicted,
-        "scaled" = out_scaled,
-        "aligned" = out_aligned,
-        "what" = current_data,
-        "original" = out_original,
-        "parameters" = parameter_table
+        out_predicted,
+        out_scaled,
+        out_aligned,
+        current_data,
+        out_original_with_parameters,
+        parameter_table
     )
 
     return(out)
@@ -738,15 +813,31 @@ generate_mask <- function(initial_parameters,
 #'
 #' @noRd
 residual_function <- function(current_parameters,
-                              fit_pars_distinguish,
-                              parameters,
-                              levels_list,
-                              effects_pars,
-                              calculate_derivative = TRUE) {
+                              pass_parameter_list,
+                              pass_parameter_list2,
+                              calculate_derivative) {
     if (FALSE) {
         current_parameters <- initial_parameters
         fit_pars_distinguish <- NULL
     }
+
+    fit_pars_distinguish <- pass_parameter_list2$fit_pars_distinguish
+    parameters <- pass_parameter_list$parameters
+    levels_list <- pass_parameter_list2$levels_list
+    effects_pars <- pass_parameter_list2$effects_pars
+    data_fit <- pass_parameter_list2$data_fit
+    model_expr <- pass_parameter_list$model_expr
+    error_model_expr <- pass_parameter_list$error_model_expr
+    constraint_expr <- pass_parameter_list$constraint_expr
+    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
+    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
+
+
+
+
+
+
+
     pars_all <- c(current_parameters, fit_pars_distinguish)
     par_list <- lapply(
         parameters,
@@ -886,29 +977,67 @@ rss_model <- function(
 #' Objective function for trust region optimizer
 #'
 objective_function <- function(current_parameters,
-                               fit_pars_distinguish,
-                               calculate_derivative = TRUE,
-                               data_fit = data_fit,
-                               parameters = parameters,
-                               levels_list = levels_list,
-                               effects_pars = effects_pars,
-                               c_strength = c_strength,
-                               mask = mask) {
+                               # fit_pars_distinguish,
+                               # data_fit,
+                               # parameters,
+                               # levels_list,
+                               # effects_pars,
+                               # c_strength,
+                               # mask,
+                               # par_list = par_list,
+                               # model_expr,
+                               # error_model_expr,
+                               # constraint_expr,
+                               # model_jacobian_expr,
+                               # error_model_jacobian_expr,
+                               # input_scale,
+                               pass_parameter_list,
+                               pass_parameter_list2,
+                               calculate_derivative = TRUE
+                               ) {
 
     if (FALSE) {
         current_parameters <- initial_parameters
         calculate_derivative = TRUE
     }
+
+    # Retrieve parameters from list
+    effects_values <- pass_parameter_list$effects_values
+    parameter_data <- pass_parameter_list$parameter_data
+    average_techn_rep <- pass_parameter_list$average_techn_rep
+    verbose <- pass_parameter_list$verbose
+    covariates <- pass_parameter_list$covariates
+    parameters <- pass_parameter_list$parameters
+    input_scale <- pass_parameter_list$input_scale
+    effects_pars <- pass_parameter_list$effects_pars
+    model_expr <- pass_parameter_list$model_expr
+    error_model_expr <- pass_parameter_list$error_model_expr
+    constraint_expr <- pass_parameter_list$constraint_expr
+    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
+    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
+    c_strength <- pass_parameter_list$c_strength
+    normalize <- pass_parameter_list$normalize
+
+
+
+
+    data_fit <- pass_parameter_list2$data_fit
+    levels_list <- pass_parameter_list2$levels_list
+    fit_pars_distinguish <- pass_parameter_list2$fit_pars_distinguish
+    parameters <- pass_parameter_list2$parameters
+    effects_pars <- pass_parameter_list2$effects_pars
+    c_strength <- pass_parameter_list2$c_strength
+    mask <- pass_parameter_list2$mask
+
     no_data <- nrow(data_fit)
 
     # Recover residuals from output of res_fn()
     calculated_residuals <- residual_function(
         current_parameters = current_parameters,
-        fit_pars_distinguish = fit_pars_distinguish,
-        calculate_derivative = calculate_derivative,
-        parameters = parameters,
-        levels_list = levels_list,
-        effects_pars = effects_pars)$residuals
+        pass_parameter_list = pass_parameter_list,
+        pass_parameter_list2 = pass_parameter_list2,
+        calculate_derivative = calculate_derivative
+        )$residuals
 
     # Retrieve residuals of model, errormodel and constraint as well as
     # the derivatives.
@@ -994,20 +1123,31 @@ objective_function <- function(current_parameters,
 #'
 
 evaluate_model <- function(initial_parameters,
-                           par_list
+                           par_list,
+                           pass_parameter_list,
+                           pass_parameter_list2
                            # = calculated_residuals[-1],
                            # effects_pars = effects_pars,
                            # model_expr = model_expr,
                            # data_fit = data_fit
                            ) {
     # Create a list with with values from 1 to the number of parameters
+
+    model_expr <- pass_parameter_list$model_expr
+    data_fit <- pass_parameter_list2$data_fit
+    # initial_parameters <- pass_parameter_list2$initial_parameters
+    effects_pars <- pass_parameter_list$effects_pars
+
+
+
     distinguish <- seq_along(initial_parameters)
 
     # Generate a list with the entries:
     #   parameters, the sequence saved generated as "fixed", name, time,
     #   value, sigma, fixed, latent, error, ys, sj, sigmaR
     my_list <- c(
-        list(initial_parameters, distinguish = distinguish), as.list(data_fit),
+        list(initial_parameters, distinguish = distinguish),
+        as.list(data_fit),
         par_list
     )
     names(my_list)[1] <- effects_pars[[1]][1]
@@ -1039,12 +1179,21 @@ evaluate_model <- function(initial_parameters,
 #'
 
 evaluate_model_jacobian <- function(initial_parameters,
-                                    par_list
+                                    par_list,
+                                    pass_parameter_list,
+                                    pass_parameter_list2
                                     # ,
                                     # effects_pars = effects_pars,
                                     # model_expr = model_expr,
                                     # data_fit = data_fit
                                     ) {
+
+    data_fit <- pass_parameter_list2$data_fit
+    # initial_parameters <- pass_parameter_list2$initial_parameters
+    model_derivertive_expr <- pass_parameter_list$model_derivertive_expr
+    effects_pars <- pass_parameter_list$effects_pars
+
+
     distinguish <- seq_along(initial_parameters)
     my_list <- c(
         list(initial_parameters, distinguish = distinguish), as.list(data_fit),

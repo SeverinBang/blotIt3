@@ -102,7 +102,7 @@ align_me <- function(data,
                      verbose = FALSE,
                      normalize_input = TRUE) {
     if (FALSE) {
-        if (TRUE) {
+        if (FALSE) {
             sim_data_wide_file <- system.file(
                 "extdata", "sim_data_wide.csv",
                 package = "blotIt3"
@@ -120,6 +120,8 @@ align_me <- function(data,
             )
             data <- data[c(1,2,7,8,9)]
             names(data) <- c("time", "condition", "ID", "name", "value")
+
+            data <- subset(data, name == "pEPOR_au")
         }
 
         model <- "yi / sj"
@@ -129,10 +131,12 @@ align_me <- function(data,
         error <- sigmaR ~ name + 1
         input_scale <- "linear"
         normalize <- TRUE
-        average_techn_rep <- TRUE
+        average_techn_rep <- FALSE
         verbose <- TRUE
         normalize_input <- TRUE
     }
+
+
 
     # check input for mistakes
     input_check_report <- input_check(
@@ -149,6 +153,14 @@ align_me <- function(data,
         cat(input_check_report, "\n")
     }
 
+    # Check if data is already blotIt output
+    parameter_data <- NULL
+
+    if (inherits(data, "aligned")) {
+        parameter_data <- data$parameters
+        data <- data$original
+    }
+
     ## read distinguishing, scaling and error effects from input
     effects <- identify_effects(
         distinguish = distinguish,
@@ -162,8 +174,6 @@ align_me <- function(data,
     ## prepare data
     data <- as.data.frame(data)
 
-    targets <- unique(data$name)
-
     to_be_scaled <- split_for_scaling(
         data,
         effects_values,
@@ -171,6 +181,16 @@ align_me <- function(data,
         input_scale
     )
 
+    # Generate unique list of targets
+    targets <- make.unique(
+        sapply(to_be_scaled, function(d) as.character(d$name)[1]),
+        sep = "_"
+    )
+
+    # Rename names to unique if multiple scalings per target exist
+    for (n in seq_along(targets)) {
+        to_be_scaled[[n]]$name <- targets[n]
+    }
 
     ## Get distinguish, scaling and error parameter from model and error model
     parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
@@ -279,7 +299,7 @@ align_me <- function(data,
         }
     } else if (input_scale == "linear") {
         if (verbose) {
-            cat("model, errormodel and constraint remain linear scaled")
+            cat("model, errormodel and constraint remain linear scaled.\n")
         }
     }
 
@@ -358,29 +378,142 @@ align_me <- function(data,
         function(myjac) parse(text = myjac)
     )
 
-
-
-    scale_target(
-        1,
-        to_be_scaled,
-        effects_values,
-        average_techn_rep,
-        input_scale,
-        targets
-    )
-
+    # if(!is.null(parameter_data)) {
+    #     print("NOT NULL")
+    # } else {
+    #     print("IS NULL")
+    # }
     # generate the fits
+
+    pass_parameter_list = list(
+        effects_values = effects_values,
+        parameter_data = parameter_data,
+        average_techn_rep = average_techn_rep,
+        verbose = verbose,
+        covariates = covariates,
+        parameters = parameters,
+        input_scale = input_scale,
+        effects_pars = effects_pars,
+        model_expr = model_expr,
+        error_model_expr = error_model_expr,
+        constraint_expr = constraint_expr,
+        model_jacobian_expr = model_jacobian_expr,
+        error_model_jacobian_expr = error_model_jacobian_expr,
+        c_strength = c_strength,
+        normalize = normalize,
+        model_derivertive_expr = model_derivertive_expr
+
+    )
     out <- lapply(
         seq_along(to_be_scaled),
-        scale_target(
+        function(
             i,
-            to_be_scaled,
-            effects_values,
-            average_techn_rep,
-            input_scale,
-            targets
-        ),
+            pass_parameter_list
+            ) {
+            try({
+                cat("Target ", i, "/",length(to_be_scaled) , ":", targets[i], "\n", sep = "")
+                out <- scale_target(
+                    current_data =  to_be_scaled[[i]],
+                    pass_parameter_list = pass_parameter_list
+                    )
 
+                return(out)
+            },
+            silent = FALSE
+            )
+        },
+        # additional parameters for scale_target
+        pass_parameter_list = pass_parameter_list
     )
+
+    # Sanitize results from failed fits
+    # rbind parameter table from not-failed elements of out
+    parameter_table <- do.call(
+        rbind,
+        lapply(
+            out,
+            function(o) {
+                if (!inherits(o, "try-error")) {
+                    o[[6]]
+                } else {
+                    NULL
+                }
+            }
+        )
+    )
+
+    # add up the "values", i.e. the -2*LL
+    attr(parameter_table, "value") <- do.call(
+        sum,
+        lapply(
+            out,
+            function(o) {
+                if (!inherits(o, "try-error")) {
+                    attr(o[[6]], "value")
+                } else {
+                    0
+                }
+            }
+        )
+    )
+
+    # add up degrees of freedom
+    attr(parameter_table, "df") <- do.call(
+        sum,
+        lapply(
+            out,
+            function(o) {
+                if (!inherits(o, "try-error")) {
+                    attr(o[[6]], "df")
+                    } else {
+                        0
+                    }
+                }
+            )
+        )
+
+    # paste together the other results
+    out_combined <- lapply(
+        seq_len(5),
+        function(i) {
+            do.call(
+                rbind,
+                lapply(
+                    out,
+                    function(o) {
+                        if (!inherits(o, "try-error")) {
+                            o[[i]]
+                        } else {
+                            NULL
+                        }
+                    }
+                )
+            )
+        }
+    )
+
+    names(out_combined) <- c(
+        "prediction",
+        "scaled",
+        "aligned",
+        "original",
+        "original_with_parameters"
+        )
+
+    return_list <- list(
+        aligned = out_combined$aligned,
+        scaled = out_combined$scaled,
+        prediction = out_combined$prediction,
+        original = out_combined$original,
+        original_with_parameters = out_combined$original_with_parameters,
+        parameter = parameter_table,
+        distinguish = effects_values[[1]],
+        scaling = effects_values[[2]]
+    )
+
+    # class(return_list) <- c("aligned", "data.frame")
+
+    return(return_list)
+
 
 }

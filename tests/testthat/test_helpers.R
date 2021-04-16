@@ -473,7 +473,7 @@ test_that("objective_function()", {
             levels_list = test_levels_list,
             effects_pars = test_effects_pars,
             c_strength = test_c_strenth,
-            mask = test_mask
+            # mask = test_mask
             ),
         c(
             "yi" = 1,
@@ -491,3 +491,76 @@ test_that("objective_function()", {
 
 })
 
+
+# split_for_scaling -------------------------------------------------------
+
+test_that("split_for_scaling()", {
+
+    sim_data_wide_file <- system.file(
+        "extdata", "sim_data_wide.csv",
+        package = "blotIt3"
+    )
+    sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
+
+    test_effect_values <- list(
+        distinguish_values = c("name", "time", "condition"),
+        scaling_values = c("name", "ID"),
+        error_values = c("name")
+    )
+
+    expected_values <- c(
+        116.83827,
+        138.80850,
+        99.09068,
+        106.68584,
+        115.02805,
+        111.91323,
+        132.56618,
+        94.46702
+    )
+
+    expect_warning(
+        split_for_scaling(
+            data = sim_data_long,
+            effects_values = test_effect_values,
+            normalize_input = TRUE,
+            input_scale = "log"
+        ),
+        paste0(
+            "'normalize_input == TRUE' is only competable with ",
+            "'input_scale == linear'. 'normalize_input' was ignored."
+        )
+    )
+
+
+    expect_equal(
+        split_for_scaling(
+            data = sim_data_long,
+            effects_values = test_effect_values,
+            normalize_input = FALSE,
+            input_scale = "linear"
+        )[[1]]$value,
+        expected_values
+    )
+
+    expect_equal(
+        split_for_scaling(
+            data = sim_data_long,
+            effects_values = test_effect_values,
+            normalize_input = TRUE,
+            input_scale = "linear"
+        )[[1]]$value,
+        expected_values / mean(expected_values)
+    )
+
+    expect_equal(
+        split_for_scaling(
+            data = sim_data_long,
+            effects_values = test_effect_values,
+            normalize_input = FALSE,
+            input_scale = "log"
+        )[[1]]$value,
+        expected_values
+    )
+
+})

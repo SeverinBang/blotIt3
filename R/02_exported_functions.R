@@ -155,7 +155,7 @@ split_for_scaling <- function(data,
         if (input_scale == "linear") {
             for (i in seq_len(length(list_out))) {
                 list_out[[i]]$value <- list_out[[i]]$value /
-                    exp(mean(log(list_out[[i]]$value)))
+                    mean(list_out[[i]]$value)
             }
         } else {
             warning(
