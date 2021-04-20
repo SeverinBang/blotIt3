@@ -118,7 +118,7 @@ align_me <- function(data,
                 sep = ",",
                 dec = "."
             )
-            data <- data[c(1,2,7,8,9)]
+            data <- data[c(1, 2, 7, 8, 9)]
             names(data) <- c("time", "condition", "ID", "name", "value")
 
             data <- subset(data, name == "pEPOR_au")
@@ -385,7 +385,7 @@ align_me <- function(data,
     # }
     # generate the fits
 
-    pass_parameter_list = list(
+    pass_parameter_list <- list(
         effects_values = effects_values,
         parameter_data = parameter_data,
         average_techn_rep = average_techn_rep,
@@ -402,24 +402,22 @@ align_me <- function(data,
         c_strength = c_strength,
         normalize = normalize,
         model_derivertive_expr = model_derivertive_expr
-
     )
     out <- lapply(
         seq_along(to_be_scaled),
-        function(
-            i,
-            pass_parameter_list
-            ) {
-            try({
-                cat("Target ", i, "/",length(to_be_scaled) , ":", targets[i], "\n", sep = "")
-                out <- scale_target(
-                    current_data =  to_be_scaled[[i]],
-                    pass_parameter_list = pass_parameter_list
+        function(i,
+                 pass_parameter_list) {
+            try(
+                {
+                    cat("Target ", i, "/", length(to_be_scaled), ":", targets[i], "\n", sep = "")
+                    out <- scale_target(
+                        current_data = to_be_scaled[[i]],
+                        pass_parameter_list = pass_parameter_list
                     )
 
-                return(out)
-            },
-            silent = FALSE
+                    return(out)
+                },
+                silent = FALSE
             )
         },
         # additional parameters for scale_target
@@ -465,12 +463,12 @@ align_me <- function(data,
             function(o) {
                 if (!inherits(o, "try-error")) {
                     attr(o[[6]], "df")
-                    } else {
-                        0
-                    }
+                } else {
+                    0
                 }
-            )
+            }
         )
+    )
 
     # paste together the other results
     out_combined <- lapply(
@@ -498,7 +496,7 @@ align_me <- function(data,
         "aligned",
         "original",
         "original_with_parameters"
-        )
+    )
 
     return_list <- list(
         aligned = out_combined$aligned,
@@ -514,6 +512,4 @@ align_me <- function(data,
     # class(return_list) <- c("aligned", "data.frame")
 
     return(return_list)
-
-
 }

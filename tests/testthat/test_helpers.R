@@ -310,8 +310,6 @@ test_that("generate_initial_pars()", {
 
 # objective_function() ----------------------------------------------------
 test_that("objective_function()", {
-
-
     test_initial_parameters <- c(
         yi = 1,
         yi = 1,
@@ -324,8 +322,6 @@ test_that("objective_function()", {
         sj = 1,
         sigmaR = 1
     )
-
-    test_fit_pars_distinguish <- NULL
 
     test_data_fit <- data.frame(
         name = c(
@@ -393,22 +389,6 @@ test_that("objective_function()", {
         )
     )
 
-    levels_list <- list(
-        distinguish = c(
-            "distinguish_1",
-            "distinguish_2",
-            "distinguish_3",
-            "distinguish_4",
-            "distinguish_5",
-            "distinguish_6",
-            "distinguish_7"
-        ),
-        scaling = c(
-            "scaling_1",
-            "scaling_2"
-        ),
-        error = "error1"
-    )
 
     test_parameters <- c(
         "distinguish" = "yi",
@@ -416,7 +396,7 @@ test_that("objective_function()", {
         "error" = "sigmaR"
     )
 
-    test_levels_list = list(
+    test_levels_list <- list(
         distinguish = c(
             "pAKT_0_0Uml Epo",
             "pAKT_5_0Uml Epo",
@@ -440,9 +420,9 @@ test_that("objective_function()", {
         error_pars = "sigmaR"
     )
 
-    test_c_strenth = 1000
+    test_c_strenth <- 1000
 
-    test_all_levels = c(
+    test_all_levels <- c(
         "pAKT_0_0Uml Epo",
         "pAKT_5_0Uml Epo",
         "pAKT_10_0Uml Epo",
@@ -462,19 +442,54 @@ test_that("objective_function()", {
         test_data_fit
     )
 
-    expect_equal(
+    test_model_expr <- parse(text = "yi[distinguish]/sj[scaling]")
+    test_error_model <- parse(
+        text = "(yi[distinguish]/sj[scaling])* sigmaR[error]"
+        )
 
+    test_model_jacobian_expr <- list(
+        distinguish = parse(text = "1/sj[scaling]"),
+        scaling = parse(text = "-(yi[distinguish]/sj[scaling]^2)"),
+        error = parse(text = "0")
+    )
+
+    test_error_model_jacobian_expr <- list(
+        distinguish = parse(text = "1/sj[scaling]*sigmaR[error]"),
+        scaling = parse(
+            text = "-(yi[distinguish]/sj[scaling]^2*sigmaR[error])"
+            ),
+        error = parse(text = "(yi[distinguish]/sj[scaling])")
+    )
+
+    constraint_expr <- paste(text = "1e3 * (mean( yi ) - 1)")
+
+
+
+    pass_parameter_list <- list(
+        parameters = test_parameters,
+        input_scale = "linear",
+        c_strength = test_c_strenth,
+        model_expr = test_model_expr,
+        error_model_expr = test_error_model,
+        model_jacobian_expr = test_model_jacobian_expr,
+        error_model_jacobian_expr = test_error_model_jacobian_expr
+    )
+
+    pass_parameter_list2 <- list(
+        data_fit = test_data_fit,
+        levels_list = test_levels_list,
+        parameters = test_parameters,
+        c_strength = test_c_strenth,
+        mask = test_mask
+    )
+
+    expect_equal(
         objective_function(
             current_parameters = test_initial_parameters,
-            fit_pars_distinguish = test_fit_pars_distinguish,
-            calculate_derivative = TRUE,
-            data_fit = test_data_fit,
-            parameters = test_parameters,
-            levels_list = test_levels_list,
-            effects_pars = test_effects_pars,
-            c_strength = test_c_strenth,
-            # mask = test_mask
-            ),
+            pass_parameter_list,
+            pass_parameter_list2,
+            calculate_derivative = FALSE
+        ),
         c(
             "yi" = 1,
             "yi" = 1,
@@ -488,14 +503,12 @@ test_that("objective_function()", {
             "sigmaR" = 1
         )
     )
-
 })
 
 
 # split_for_scaling -------------------------------------------------------
 
 test_that("split_for_scaling()", {
-
     sim_data_wide_file <- system.file(
         "extdata", "sim_data_wide.csv",
         package = "blotIt3"
@@ -562,5 +575,30 @@ test_that("split_for_scaling()", {
         )[[1]]$value,
         expected_values
     )
+})
 
+
+# resolve_function() -----------------------------------------------------
+test_that("resolve_function()", {
+    test_initial_parameters <- c(
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        yi = 1,
+        sj = 1,
+        sj = 1,
+        sigmaR = 1
+    )
+
+    expect_equal(
+        resolve_function(
+            current_parameters = test_initial_parameters,
+            pass_parameter_list = pass_parameter_list,
+            pass_parameter_list2 = pass_parameter_list2,
+            calculate_derivative = calculate_derivative
+        ),
+    )
 })

@@ -60,7 +60,7 @@ identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
         distinguish_values <- c(distinguish_values, "1")
     }
     if (attr(terms(scaling), "intercept") != 0 &
-             length(scaling_values) == 1) {
+        length(scaling_values) == 1) {
         scaling_values <- c(scaling_values, "1")
     }
     if (attr(terms(error), "intercept") != 0 &
@@ -221,6 +221,15 @@ analyze_blocks <- function(block_matrix) {
 
 #' Check input parameters for structural errors
 #'
+#' the input of \link{align_me} is checked for user mistakes.
+#'
+#' @param data Input data, usually output of \link{read_wide}
+#' @param model Model definition as a string
+#' @param error_model Error model difiniton as a string
+#' @param distinguish Definition of the distinguish effects
+#' @param scaling Definition of the scaling effects
+#' @param error Definition of the error effects
+#' @param input_scale String, either of c('linear', 'log', 'log2', 'log10').
 #'
 #' @noRd
 
@@ -297,22 +306,162 @@ input_check <- function(data = NULL,
 #' \link{objective_function}.
 #'
 #' @param current_data current data set, belongs to one scale.
-#' @param effects_values list of names of the columns defined as distinguish,
-#' scaling and error effects, respectively
-#' @param average_techn_rep logical, indicates if the technical replicates
-#' @param input_scale character, defining in which scale the input is passed.
-#' must be one of c('linear', 'log', 'log2', 'log10')
-#' should be averaged
+#' @param pass_parameter_list from the the \code{pass_parameter_list} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{effects_values}}{
+#'      Named list of vectors. The names correspond to the effects and the
+#'      vectors contain the 'values'; the right hand side of the respective
+#'      effects parameters passed to \link{align_me} the names of the columns
+#'      associated with the respective effect.
+#'  }
+#'  \item{\code{parameter_data}}{
+#'      If the \code{data} parameter passed to \link{align_me} is already an
+#'      output of \link{align_me}, it contains the fitted parameters, otherwise
+#'      \code{NULL}.
+#'  }
+#'  \item{\code{average_techn_rep}}{
+#'      Logical, if \code{TRUE} technical replicates, that can not be separated
+#'      by the respective \code{distinguish} and \code{scaling} values will be
+#'      averaged.
+#'  }
+#'  \item{\code{verbose}}{
+#'      Logical, if \code{TRUE} additional output will be generated.
+#'  }
+#'  \item{\code{covariates}}{
+#'      String, the covariates as defined by the (error-) model expressions as
+#'      defined in the respective parameters of \link{align_me}
+#'  }
+#'  \item{\code{parameters}}{
+#'      Named vector, contains the variables for the three effects, and the
+#'      respective effects as names.
+#'  }
+#'  \item{\code{input_scale}}{
+#'      String, defining the scale of the data see \code{input_scale} in
+#'      \link{align_me}.
+#'  }
+#'  \item{\code{effects_pars}}{
+#'      Similar to \code{parameters}, but as a named list.
+#'  }
+#'  \item{\code{model_expr}}{
+#'      What is passed to \code{model} in \link{align_me} but with the entries
+#'      of \code{parameters} replaced by the respective name (e.g. 'yi' is
+#'      replaced by 'distinguish'). The result is parsed as an expression.
+#'  }
+#'  \item{\code{error_model_expr}}{
+#'      Same as \code{model_expr} but with the value of \code{error_model} from
+#'      \link{align_me}.
+#'  }
+#'  \item{\code{constraint_expr}}{
+#'      If \code{normalize} is set to \code{TRUE} in \link{align_me},
+#'      \code{constraint_expr} contains expression of the normalization
+#'      constraint, otherwise it is empty.
+#'  }
+#'  \item{\code{model_jacobian_expr}}{
+#'      Named list with the derivatives of \code{model_expr} with respect to the
+#'      respective effects as entries.
+#'  }
+#'  \item{\code{error_model_jacobian_expr}}{
+#'      Analogue to \code{model_jacobian_expr} but with \code{error_model_expr}.
+#'  }
+#'  \item{\code{c_strength}}{
+#'      Numerical 1000, if \code{normalize} is set to \code{TRUE} in
+#'      \link{align_me}, otherwise unused.
+#'  }
+#'  \item{\code{normalize}}{
+#'      Logical, direct taken from the \code{normalize} parameter of
+#'      \link{align_me}.
+#'  }
+#' }
 #'
-#' @return A new data set including the original, scaled and
-#' predicted data as well as the estimated parameters
+#' @return A list of \code{data.frame}S with the entries:
+#' \describe{
+#'  \item{\code{out_predicted}}{
+#'      \code{data.frame} with the columns \code{name}, \code{time},
+#'      \code{value}, \code{sigma}, \code{distinguish}, \code{scaling} and
+#'      \code{error}.
+#'
+#'      \code{values} contains the predictions by evaluation of the (error-)
+#'      model with the fitted parameters on the original scale (if
+#'      \code{normalize_input} is set to \code{FALSE} in \link{align_me}). The
+#'      last three columns contain strings pasted from the respective values of
+#'      the current entry.
+#'  }
+#'  \item{\code{out_scaled}}{
+#'      \code{data.frame} with the original columns and additionally
+#'      \code{sigma} and \code{1}.
+#'
+#'      The \code{values} are the original ones scaled to common scale by
+#'      applying the inverse of the model with the fitted parameters. The
+#'      \code{sigma} entries are the results of the evaluated error model scaled
+#'      to common scale adhering to Gaussian error propagation.
+#'  }
+#'  \item{\code{out_aligned}}{
+#'      \code{data.frame} with the original column names, the column
+#'      \code{value} contains the estimated distinguish parameters.
+#'
+#'      The \code{values} are estimated distinguish parameters, while the errors
+#'      \code{sigma} are from the Fisher information.
+#'  }
+#'  \item{\code{current_data}}{
+#'      \code{data.frame} with the original data with added columns \code{sigma}
+#'      and \code{1}.
+#'  }
+#'  \item{\code{out_orig_w_parameters}}{
+#'      Same \code{data.frame} as \code{current_data} but with added columns for
+#'      the \code{parameters} ad the respective fitted values.
+#'  }
+#'  \item{\code{parameter_table}}{
+#'      \code{data.frame} with the columns:
+#'      \itemize{
+#'          \item{\code{level}:}{
+#'          String pasting all the unique effect entries.
+#'          }
+#'      }
+#'      \itemize{
+#'          \item{\code{parameter}:}{
+#'          Parameter associated with the current effect (compare with
+#'          \code{parameters}).
+#'          }
+#'      }
+#'      \itemize{
+#'          \item{\code{value}:}{
+#'          Value of the estimated parameters. The ones corresponding to the
+#'          distinguished parameters coincide with the \code{values} column of
+#'          \code{out_aligned}.
+#'          }
+#'      }
+#'      \itemize{
+#'          \item{\code{sigma}:}{
+#'          Errors of the estemated parameter values by utilizing the Fisher
+#'          information
+#'          }
+#'      }
+#'      \itemize{
+#'          \item{\code{nll}:}{
+#'          Negative of twice the log likelihood of the fit in which the
+#'          paramters are estimated.
+#'          }
+#'      }
+#'      \itemize{
+#'          \item{\code{no_pars}:}{
+#'          Number of fitted parameters (distinguish, scaling and error), minus
+#'          one if \code{normalize = TRUE} in the call of \link{align_me}.
+#'          }
+#'      }
+#'      \itemize{
+#'          \item{\code{no_data}:}{
+#'          Length of the current data file, i.e. number of measurements in the
+#'          set that is currently scaled.
+#'          }
+#'      }
+#'  }
+#' }
 #'
 #' @noRd
 
-scale_target <- function(
-    current_data,
-    pass_parameter_list
-) {
+scale_target <- function(current_data,
+                         pass_parameter_list) {
     # developement helper only
     if (FALSE) {
         current_data <- to_be_scaled[[1]]
@@ -327,12 +476,7 @@ scale_target <- function(
     parameters <- pass_parameter_list$parameters
     input_scale <- pass_parameter_list$input_scale
     effects_pars <- pass_parameter_list$effects_pars
-    model_expr <- pass_parameter_list$model_expr
-    error_model_expr <- pass_parameter_list$error_model_expr
-    constraint_expr <- pass_parameter_list$constraint_expr
-    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
-    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
-    c_strength <- pass_parameter_list$c_strength
+
     normalize <- pass_parameter_list$normalize
 
 
@@ -350,7 +494,7 @@ scale_target <- function(
     if (!is.null(parameter_data)) {
         current_parameter <- parameter_data[
             parameter_data$name %in% current_data$name,
-            ]
+        ]
     }
 
 
@@ -432,13 +576,13 @@ scale_target <- function(
             }
         )
     )
-#
+    #
     initial_parameters <- generate_initial_pars(
         parameters,
         input_scale,
         levels_list
     )
-#
+    #
     mask <- generate_mask(
         initial_parameters,
         parameters,
@@ -452,42 +596,26 @@ scale_target <- function(
         cat("Starting fit\n")
     }
 
-    pass_parameter_list2  <-  list(
+    pass_parameter_list2 <- list(
         data_fit = data_fit,
         levels_list = levels_list,
         fit_pars_distinguish = fit_pars_distinguish,
-        parameters = parameters,
+        # parameters = parameters,
         effects_pars = effects_pars,
-        c_strength = c_strength,
+        # c_strength = c_strength,
         mask = mask,
         initial_parameters = initial_parameters
     )
 
-# * call of trust() function ----------------------------------------------
+    # * call of trust() function ----------------------------------------------
 
 
     fit_result <- trust::trust(
-        objfun =  objective_function,
+        objfun = objective_function,
         parinit = initial_parameters,
         rinit = 1,
         rmax = 10,
         blather = verbose,
-        # # folowing: additional parameters for objective_function()
-        # fit_pars_distinguish = fit_pars_distinguish,
-        # calculate_derivative = TRUE,
-        # data_fit = data_fit,
-        # parameters = parameters,
-        # levels_list = levels_list,
-        # effects_pars = effects_pars,
-        # mask = mask,
-        # c_strength = c_strength,
-        # model_expr = model_expr,
-        # error_model_expr = error_model_expr,
-        # constraint_expr = constraint_expr,
-        # model_jacobian_expr = model_jacobian_expr,
-        # error_model_jacobian_expr = error_model_jacobian_expr,
-        # input_scale = input_scale
-        # # parameterlists
         pass_parameter_list = pass_parameter_list,
         pass_parameter_list2 = pass_parameter_list2
     )
@@ -498,16 +626,17 @@ scale_target <- function(
         cat("Fit converged.\n")
     }
 
-    residuals_fit <- residual_function(
-        current_parameters =  fit_result$argument,
+    residuals_fit <- resolve_function(
+        current_parameters = fit_result$argument,
         pass_parameter_list = pass_parameter_list,
         pass_parameter_list2 = pass_parameter_list2,
         calculate_derivative = FALSE
-        )
+    )
 
     bessel <- sqrt(
-        nrow(data_fit) / (nrow(data_fit) - length(initial_parameters) + normalize)
-        )
+        nrow(data_fit) / (nrow(data_fit) - length(initial_parameters) +
+            normalize)
+    )
 
     # Get singular values (roots of non negative eigenvalues of M^* \cdot M)
     # here it is synonymous with eigenvalue.
@@ -566,7 +695,7 @@ scale_target <- function(
             fit_result$iterations, "\n"
         )
         cat("-2*LL: ", fit_result$value, "on", nrow(data_fit) +
-                normalize - length(fit_result$argument), "degrees of freedom\n")
+            normalize - length(fit_result$argument), "degrees of freedom\n")
     }
 
     attr(parameter_table, "value") <- fit_result$value
@@ -584,17 +713,6 @@ scale_target <- function(
         cat("Inverting model ... ")
     }
 
-
-    # rootSolve::multiroot(
-    #     f = evaluate_model,
-    #     start = initial_values_scaled,
-    #     jacfunc = evaluate_model_jacobian,
-    #     par_list = residuals_fit[-1],
-    #     verbose = TRUE,
-    #     pass_parameter_list = pass_parameter_list,
-    #     pass_parameter_list2 = pass_parameter_list2
-    # )
-    # print("DEEEBUG")
 
     values_scaled <- try(
         # my_multiroot
@@ -672,21 +790,23 @@ scale_target <- function(
 
 
     # Get the original data
-    out_original_with_parameters <- current_data
+    out_orig_w_parameters <- current_data
     for (k in seq_along(parameters)) {
         effect <- names(parameters)[k]
         my_levels <- as.character(data_fit[[effect]])
-        index0 <- which(as.character(parameter_table$parameter) == parameters[k])
+        index0 <- which(
+            as.character(parameter_table$parameter) == parameters[k]
+        )
         index1 <- match(my_levels, as.character(parameter_table$level[index0]))
         index <- index0[index1]
-        out_original_with_parameters[[parameters[k]]] <- parameter_table$value[index]
+        out_orig_w_parameters[[parameters[k]]] <- parameter_table$value[index]
     }
     out <- list(
         out_predicted,
         out_scaled,
         out_aligned,
         current_data,
-        out_original_with_parameters,
+        out_orig_w_parameters,
         parameter_table
     )
 
@@ -698,6 +818,18 @@ scale_target <- function(
 # generate_initial_pars() -------------------------------------------------
 
 #' Method to generate a set of initial parameters for \link{scale_target}
+#'
+#' @param parameters Named vector, contains the variables for the three effects,
+#' and the respective effects as names.
+#' @param input_scale String: 'linear', 'log', 'log2' or 'log10'. Decides what
+#' the initial value will be
+#' @param levels_list Named list with one entry per effect containing a vector
+#' of strings composed with the respective pasted entries of the effects columns
+#'
+#' @return Named vector with one entry per parameter, all are 1 if
+#' \code{input_scale = 'linear'} and 0 if not. The names are the entries of
+#' \code{parameters} of the corresponding effect. Each entry is repeated as
+#' often as there are parameters of the respective effect.
 #'
 #' @noRd
 
@@ -771,6 +903,11 @@ generate_initial_pars <- function(parameters,
 #' current data set
 #' @param data_fit data frame containing the data that will be fitted
 #'
+#' @return list with one entry per entry of \code{all_levels}. Each of this
+#' entries is a numerical list of the length of \code{data_fit}. The entries are
+#' either 1, if the corresponding entry of \code{data_fit} is resembled by the
+#' current entry of \code{all_levels}.
+#'
 #' @noRd
 
 generate_mask <- function(initial_parameters,
@@ -794,49 +931,61 @@ generate_mask <- function(initial_parameters,
             return(mask_vector)
         }
     )
+
+    return(mask)
 }
 
 
 
-# residual_function() -----------------------------------------------------
+# resolve_function() -----------------------------------------------------
 
-#' Calculate residuals for optimization
+#' Function to sort the current set of parameters into the three effect
+#' categories.
 #'
-#' Residuals of model evaluations for a set of \code{current_parameters} and
-#' \code{fit_pars_distinguish} are calculated by evaluation of \link{rss_model}.
+#' Additionally, residuals of model evaluations for the set of
+#' \code{current_parameters} \code{fit_pars_distinguish} are calculated by
+#' evaluation of \link{rss_model}.
 #'
 #' @param current_parameters named vector of vectors to be tested currently
-#' @param  fit_pars_distinguish named vector that will contain the fitted values
-#' of the distinguish parameters.
+#' @param pass_parameter_list from the the \code{pass_parameter_list} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{parameters}}{Named list of the parameters of the three effects,
+#'  the names are the respective effects}
+#' }
+#' @param pass_parameter_list2 from the the \code{pass_parameter_list2} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{fit_pars_distinguish}}{TODO: Check if it is always \code{NULL}?}
+#'  \item{\code{levels_list}}{Named list of vectors. One entry per effect with
+#'  the respective name. The entry contains a list of the unique strings
+#'  composed from the entries of \code{effect_values} of the respective effect,
+#'  i.e. the entries of the columns containing e.g. the distinguish-effects
+#'  (name, time, condition etc.).}
+#'  \item{\code{effects_pars}}{Named list of vectors. One entry per effect with
+#'  the respective name. The entry then contains the string of the effect
+#'  parameter, i.e. the variable name (e.g. "sj" for scaling).}
+#' }
 #'
-#' @return large list
+#' @return named list of the residuals calculated in \link{rss_model} and the
+#' \code{current_parameters} sorted in the effects with the respective entries
+#' from \code{levels_list} as names.
 #'
 #' @noRd
-residual_function <- function(current_parameters,
-                              pass_parameter_list,
-                              pass_parameter_list2,
-                              calculate_derivative) {
+#'
+resolve_function <- function(current_parameters,
+                             pass_parameter_list,
+                             pass_parameter_list2,
+                             calculate_derivative) {
     if (FALSE) {
         current_parameters <- initial_parameters
-        fit_pars_distinguish <- NULL
     }
 
-    fit_pars_distinguish <- pass_parameter_list2$fit_pars_distinguish
+
     parameters <- pass_parameter_list$parameters
+    fit_pars_distinguish <- pass_parameter_list2$fit_pars_distinguish
     levels_list <- pass_parameter_list2$levels_list
     effects_pars <- pass_parameter_list2$effects_pars
-    data_fit <- pass_parameter_list2$data_fit
-    model_expr <- pass_parameter_list$model_expr
-    error_model_expr <- pass_parameter_list$error_model_expr
-    constraint_expr <- pass_parameter_list$constraint_expr
-    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
-    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
-
-
-
-
-
-
 
     pars_all <- c(current_parameters, fit_pars_distinguish)
     par_list <- lapply(
@@ -868,12 +1017,8 @@ residual_function <- function(current_parameters,
         list(
             residuals = rss_model(
                 par_list,
-                data_fit,
-                model_expr,
-                error_model_expr,
-                constraint_expr,
-                model_jacobian_expr,
-                error_model_jacobian_expr,
+                pass_parameter_list,
+                pass_parameter_list2,
                 calculate_derivative = calculate_derivative
             )
         ),
@@ -885,43 +1030,64 @@ residual_function <- function(current_parameters,
 
 # rss_model() -------------------------------------------------------------
 
-#' Calculate model residual sum of squares
+#' Calculate model residuals
 #'
-#' @return list of residuals
+#' Residuals are calculated by the difference (prediction - value), where
+#' \code{prediction} is the evaluation of the model with the current set of
+#' parameters and \code{value} the respective measurements. Optionally, the
+#' derivatives are also calculated
+#'
+#'
+#' @param par_list Named list with one entry per effect (with the respective
+#' name). The entry contains a named vector with the unique stings of the
+#' respective effect values i.e. the entries of the respective columns (e.g.
+#' name, time, condition etc. for 'distinguish')
+#' @param pass_parameter_list from the the \code{pass_parameter_list} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{model_expr}}{The argument of the \code{model} parameter of
+#'  \link{align_me} parsed as an executable expression.}
+#'  \item{\code{error_model_expr}}{The argument of the \code{error_model}
+#'  parameter of \link{align_me} parsed as en executable expression.}
+#'  \item{\code{constraint_expr}}{If the logical argument \code{normalize} of
+#'  \link{align_me} is set to \code{TRUE}, an executable constraint expression
+#'  is passed. If \code{normalize = FALSE} it is empty.}
+#'  \item{\code{model_jacobian_expr}}{The Jacobian of the model as a named list
+#'  with the respective derivatives as entries passed as expression.}
+#'  \item{\code{error_model_jacobian_expr}}{The Jacobian of the error model as a
+#'  named list with the respective derivatives as entries passed as expression.}
+#' }
+#'
+#' @param pass_parameter_list2 from the the \code{pass_parameter_list2} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{data_fit}}{The current dataset}
+#' }
+#'
+#' @param calculate_derivative logical, if \code{TRUE}, derivatives will also be
+#' calculated.
+#'
+#' @return list of residuals with the derivatives (optional) as attributes.
 #'
 #' @noRd
-rss_model <- function(
-    par_list,
-    data_fit,
-    model_expr,
-    error_model_expr,
-    constraint_expr,
-    model_jacobian_expr,
-    error_model_jacobian_expr,
-    calculate_derivative = TRUE) {
-    # First argument: data, second argument: expressions which are evalued with
-    # the data of arg 1
+rss_model <- function(par_list,
+                      pass_parameter_list,
+                      pass_parameter_list2,
+                      calculate_derivative = TRUE) {
+    model_expr <- pass_parameter_list$model_expr
+    error_model_expr <- pass_parameter_list$error_model_expr
+    constraint_expr <- pass_parameter_list$constraint_expr
+    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
+    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
 
-    if (FALSE) {
-        name <- as.list(data_fit)$name
-        time <- as.list(data_fit)$time
-        value <- as.list(data_fit)$value
-        sigma <- as.list(data_fit)$sigma
-        fixed <- as.list(data_fit)$fixed
-        latent <- as.list(data_fit)$latent
-        error <- as.list(data_fit)$error
-        yi <- par_list$ys
-        sj <- par_list$sj
-        sigmaR <- par_list$sigmaR
-        calculate_derivative = TRUE
-    }
+    data_fit <- pass_parameter_list2$data_fit
+
     with(
-        # Gives list with entries: name, time, value, sigma, fixed, latent, error,
-        # ys, sj, sigmaR, the last three are from "parlist".
-        c(as.list(data_fit), par_list),
-        {
-            # Generates list with entry <NoOfMeasurements> x 1 as entries, save
-            # this list as "var" and initialize the "prediction" list with it
+        # paste list with entries: name, time, value, sigma, the effects and
+        # their paramters
+        c(as.list(data_fit), par_list), {
+            # Generate lists var and prediction with <NoOfMeasurements> entries
+            # and initialize the it with 1
             prediction <- var <- rep(1, length(value))
 
             # Get the prediction by evaluating the model
@@ -951,8 +1117,12 @@ rss_model <- function(
                         v_mod <- v_err <- rep(0, length(value))
 
                         # Get derivatives for model and errormodel
-                        v_mod[seq_len(length(value))] <- eval(model_jacobian_expr[[k]])
-                        v_err[seq_len(length(value))] <- eval(error_model_jacobian_expr[[k]])
+                        v_mod[seq_len(length(value))] <- eval(
+                            model_jacobian_expr[[k]]
+                        )
+                        v_err[seq_len(length(value))] <- eval(
+                            error_model_jacobian_expr[[k]]
+                        )
 
                         residual_deriv <- v_mod / sqrt(var) - v_err * res / var
                         variance_deriv <- v_err * 2 * sqrt(var)
@@ -976,68 +1146,76 @@ rss_model <- function(
 
 #' Objective function for trust region optimizer
 #'
+#' @param current_parameters Current set of parameters to be tested. Will be
+#' iteratively changed by the objective function.
+#' @param pass_parameter_list from the the \code{pass_parameter_list} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{parameters}}{
+#'      Named vector, contains the variables for the three effects, and the
+#'      respective effects as names.
+#'  }
+#'  \item{\code{input_scale}}{
+#'      String, defining the scale of the data see \code{input_scale} in
+#'      \link{align_me}.
+#'  }
+#'  \item{\code{c_strength}}{
+#'      Numerical 1000, if \code{normalize} is set to \code{TRUE} in
+#'      \link{align_me}, otherwise unused.
+#'  }
+#' }
+#'
+#' @param pass_parameter_list2 from the the \code{pass_parameter_list2} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{data_fit}}{
+#'      The current data set
+#'  }
+#'  \item{\code{levels_list}}{Named list of vectors. One entry per effect with
+#'      the respective name. The entry contains a list of the unique strings
+#'      composed from the entries of \code{effect_values} of the respective
+#'      effect, i.e. the entries of the columns containing e.g. the distinguish
+#'      effects (name, time, condition etc.).
+#'  }
+#'  \item{\code{mask}}{
+#'      Output of \link{generate_mask}
+#'  }
+#' }
+#'
+#' @param calculate_derivative Logical, indicates if derivatives should be also
+#' calculated.
+#'
+#' @return named list with the entries \code{value}, \code{gradient} and
+#' \code{hessian}. The \code{value}S are the residual sum of squares with the
+#' residuals as calculated by \link{rss_model} (via \link{resolve_function}).
+#'
+#' @noRd
 objective_function <- function(current_parameters,
-                               # fit_pars_distinguish,
-                               # data_fit,
-                               # parameters,
-                               # levels_list,
-                               # effects_pars,
-                               # c_strength,
-                               # mask,
-                               # par_list = par_list,
-                               # model_expr,
-                               # error_model_expr,
-                               # constraint_expr,
-                               # model_jacobian_expr,
-                               # error_model_jacobian_expr,
-                               # input_scale,
                                pass_parameter_list,
                                pass_parameter_list2,
-                               calculate_derivative = TRUE
-                               ) {
-
+                               calculate_derivative = TRUE) {
     if (FALSE) {
         current_parameters <- initial_parameters
-        calculate_derivative = TRUE
+        calculate_derivative <- TRUE
     }
 
-    # Retrieve parameters from list
-    effects_values <- pass_parameter_list$effects_values
-    parameter_data <- pass_parameter_list$parameter_data
-    average_techn_rep <- pass_parameter_list$average_techn_rep
-    verbose <- pass_parameter_list$verbose
-    covariates <- pass_parameter_list$covariates
     parameters <- pass_parameter_list$parameters
     input_scale <- pass_parameter_list$input_scale
-    effects_pars <- pass_parameter_list$effects_pars
-    model_expr <- pass_parameter_list$model_expr
-    error_model_expr <- pass_parameter_list$error_model_expr
-    constraint_expr <- pass_parameter_list$constraint_expr
-    model_jacobian_expr <- pass_parameter_list$model_jacobian_expr
-    error_model_jacobian_expr <- pass_parameter_list$error_model_jacobian_expr
     c_strength <- pass_parameter_list$c_strength
-    normalize <- pass_parameter_list$normalize
-
-
-
 
     data_fit <- pass_parameter_list2$data_fit
     levels_list <- pass_parameter_list2$levels_list
-    fit_pars_distinguish <- pass_parameter_list2$fit_pars_distinguish
-    parameters <- pass_parameter_list2$parameters
-    effects_pars <- pass_parameter_list2$effects_pars
-    c_strength <- pass_parameter_list2$c_strength
     mask <- pass_parameter_list2$mask
 
     no_data <- nrow(data_fit)
 
     # Recover residuals from output of res_fn()
-    calculated_residuals <- residual_function(
+    calculated_residuals <- resolve_function(
         current_parameters = current_parameters,
         pass_parameter_list = pass_parameter_list,
         pass_parameter_list2 = pass_parameter_list2,
         calculate_derivative = calculate_derivative
-        )$residuals
+    )$residuals
 
     # Retrieve residuals of model, errormodel and constraint as well as
     # the derivatives.
@@ -1068,16 +1246,20 @@ objective_function <- function(current_parameters,
                 # Apply the mask to the residuals
                 residual_jacobian <- residual_deriv[[which_par]] * mask[[k]]
                 variance_jacobian <- variance_deriv[[which_par]] * mask[[k]]
-                constrain_jacobian <- as.numeric(names(current_parameters[k]) ==
-                                             parameters["distinguish"]) * c_strength / length(levels_list[[1]])
+                constrain_jacobian <- as.numeric(
+                    names(current_parameters[k]) == parameters["distinguish"]
+                ) * c_strength / length(levels_list[[1]])
 
                 # Convert to log if wanted
                 if (input_scale == "log") {
-                    constrain_jacobian <- constrain_jacobian * exp(current_parameters[k])
+                    constrain_jacobian <- constrain_jacobian *
+                        exp(current_parameters[k])
                 } else if (input_scale == "log2") {
-                    constrain_jacobian <- constrain_jacobian * 2^(current_parameters[k])
+                    constrain_jacobian <- constrain_jacobian *
+                        2^(current_parameters[k])
                 } else if (input_scale == "log10") {
-                    constrain_jacobian <- constrain_jacobian * 10^(current_parameters[k])
+                    constrain_jacobian <- constrain_jacobian *
+                        10^(current_parameters[k])
                 }
 
                 # Stitch the results together
@@ -1086,16 +1268,24 @@ objective_function <- function(current_parameters,
         ))
 
         # Split the above list into corresponding parts
-        residual_jacobian <- calculated_residuals_jacobian[1:no_data, , drop = FALSE]
+        residual_jacobian <- calculated_residuals_jacobian[
+            1:no_data, ,
+            drop = FALSE
+        ]
         jac_vars <- calculated_residuals_jacobian[
             (no_data + 1):(2 * no_data), ,
             drop = FALSE
         ]
-        constrain_jacobian <- calculated_residuals_jacobian[2 * no_data + 1, , drop = FALSE]
+        constrain_jacobian <- calculated_residuals_jacobian[
+            2 * no_data + 1, ,
+            drop = FALSE
+        ]
 
         # Compose to gradient vector and hessian matrix
-        gradient <- as.vector(2 * residuals %*% residual_jacobian +
-                                  (bessel / variances) %*% jac_vars + 2 * constraint * constrain_jacobian)
+        gradient <- as.vector(
+            2 * residuals %*% residual_jacobian + (bessel / variances) %*%
+                jac_vars + 2 * constraint * constrain_jacobian
+        )
         hessian <- 2 * t(rbind(residual_jacobian, constrain_jacobian)) %*%
             (rbind(residual_jacobian, constrain_jacobian))
     }
@@ -1119,24 +1309,47 @@ objective_function <- function(current_parameters,
 
 #' Model evaluation method
 #'
-#' @noRd
+#' Method to evaluate the model with a given set of parameters.
 #'
+#' @param initial_parameters Parameters used for model evaluation
+#'
+#' @param par_list Named list with one entry per effect (with the respective
+#' name). The entry contains a named vector with the unique stings of the
+#' respective effect values i.e. the entries of the respective columns (e.g.
+#' name, time, condition etc. for 'distinguish')
+#' @param pass_parameter_list from the the \code{pass_parameter_list} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{effects_pars}}{
+#'      Named list with one entry per effect. The values are the respective
+#'      effect parameters.
+#'  }
+#'  \item{\code{model_expr}}{
+#'      The argument of the \code{model} parameter of \link{align_me} parsed as
+#'      an executable expression.
+#'  }
+#' }
+#'
+#' @param pass_parameter_list2 from the the \code{pass_parameter_list2} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{data_fit}}{The current dataset.}
+#' }
+#'
+#'
+#' @noRd
 
 evaluate_model <- function(initial_parameters,
                            par_list,
                            pass_parameter_list,
-                           pass_parameter_list2
-                           # = calculated_residuals[-1],
-                           # effects_pars = effects_pars,
-                           # model_expr = model_expr,
-                           # data_fit = data_fit
-                           ) {
+                           pass_parameter_list2) {
     # Create a list with with values from 1 to the number of parameters
 
+    effects_pars <- pass_parameter_list$effects_pars
     model_expr <- pass_parameter_list$model_expr
     data_fit <- pass_parameter_list2$data_fit
     # initial_parameters <- pass_parameter_list2$initial_parameters
-    effects_pars <- pass_parameter_list$effects_pars
+
 
 
 
@@ -1151,19 +1364,7 @@ evaluate_model <- function(initial_parameters,
         par_list
     )
     names(my_list)[1] <- effects_pars[[1]][1]
-    # to evlaluate manually
-    # yi <- my_list$yi
-    # fixed <- my_list$fixed
-    # name <- my_list$name
-    # time <- my_list$time
-    # value <- my_list$value
-    # sigma <- my_list$sigma
-    # distinguish <- my_list$distinguish
-    # scaling <- my_list$scaling
-    # error <- my_list$error
-    # yi <- my_list$yi
-    # sj <- my_list$sj
-    # sigmaR <- my_list$sigmaR
+
     values <- with(my_list, eval(model_expr) - data_fit$value)
 
     return(values)
@@ -1175,23 +1376,44 @@ evaluate_model <- function(initial_parameters,
 
 #' Model jacobian evaluation method
 #'
+#' Method to evaluate the model jacobian with a given set of parameters.
+#'
+#' @param initial_parameters Parameters used for model jacobian evaluation
+#'
+#' @param par_list Named list with one entry per effect (with the respective
+#' name). The entry contains a named vector with the unique stings of the
+#' respective effect values i.e. the entries of the respective columns (e.g.
+#' name, time, condition etc. for 'distinguish')
+#' @param pass_parameter_list from the the \code{pass_parameter_list} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{effects_pars}}{
+#'      Named list with one entry per effect. The values are the respective
+#'      effect parameters.
+#'  }
+#'  \item{\code{model_derivertive_expr}}{
+#'      The jacobian of the argument of the \code{model} parameter of
+#'      \link{align_me} parsed as an executable expression.
+#'  }
+#' }
+#'
+#' @param pass_parameter_list2 from the the \code{pass_parameter_list2} argument
+#' the following parameters are used:
+#' \describe{
+#'  \item{\code{data_fit}}{The current dataset.}
+#' }
+#'
 #' @noRd
 #'
 
 evaluate_model_jacobian <- function(initial_parameters,
                                     par_list,
                                     pass_parameter_list,
-                                    pass_parameter_list2
-                                    # ,
-                                    # effects_pars = effects_pars,
-                                    # model_expr = model_expr,
-                                    # data_fit = data_fit
-                                    ) {
+                                    pass_parameter_list2) {
+    effects_pars <- pass_parameter_list$effects_pars
+    model_derivertive_expr <- pass_parameter_list$model_derivertive_expr
 
     data_fit <- pass_parameter_list2$data_fit
-    # initial_parameters <- pass_parameter_list2$initial_parameters
-    model_derivertive_expr <- pass_parameter_list$model_derivertive_expr
-    effects_pars <- pass_parameter_list$effects_pars
 
 
     distinguish <- seq_along(initial_parameters)
