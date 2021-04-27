@@ -82,88 +82,438 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 
 
 
-# split_for_scaling()  ----------------------------------------------------
 
 
-#' split_data
+# plot_align_me -----------------------------------------------------------
+
+
+
+#' All-in-one plot function for blotIt()
 #'
-#' Split data in independent blocks according to distinguish and scaling
-#' variables as being defined for \link{align_me}. Each block will be given an
-#' individual scaling factor.
+#' Takes the output of \link{align_me} and generates graphs. Which data will be
+#' plotted can then be specified separately.
 #'
-#' @param data data frame with columns "name", "time", "value" and others
-#' @param effects_values two-sided formula, see \link{align_me}
-#' @param scaling two-sided formula, see \link{align_me}
-#' @param normalize_input logical, if set to TRUE, the input data will be
-#' normalized by dividing all entries belonging to one scaling factor by their
-#'  respective mean. This prevents convergence failure on some hardware when the
-#'  data for different scaling effects differ by to many orders of magnitude.
-#' @return list of data frames
+#' @param out_list \code{out_list} file as produced by \link{align_me}, a list
+#' of data.frames.
+#' @param plot_points String to specify which data set should be plotted in form
+#' of points with corresponding error bars. It must be one of
+#' \code{c("original", "scaled", "prediction", "aligned")}.
+#' @param plot_line Same as above but with a line and error band.
+#' @param spline Logical, if set to \code{TRUE}, what is specified as
+#' \code{plot_line} will be plotted as a smooth spline instead of straight lines
+#' between points.
+#' @param scales String passed as \code{scales} argument to \link{facet_wrap}.
 #'
-#' @noRd
-split_for_scaling <- function(data,
-                              effects_values,
-                              normalize_input,
-                              input_scale) {
-    if (!"1" %in% colnames(data)) {
-        data["1"] <- 1
-        intercept <- FALSE
-    } else {
-        intercept <- TRUE
+#' @param align_zeros Logical, if \code{TRUE}, the zero ticks are aligned
+#' between the facets.
+#' @param plot_caption Logical, if \code{TRUE}, a caption describing the plotted
+#' data is added to the plot.
+#' @param ncol Numerical passed as \code{ncol} argument to
+#' \link{facet_wrap}.
+#'
+#' @param my_colors list of custom color values as taken by the \code{values}
+#' argument in the \link{scale_color_manual} method for \code{ggplot} objects.
+#'
+#' @param duplicate_zero_points Logical, if set to \code{TRUE} all zero time
+#' points are assumed to belong to the first condition. E.g. when the different
+#' conditions consist of treatments added at time zero. Default is \code{FALSE}.
+#'
+#' @param my_order Optional list of target names in the custom order that will
+#' be used for faceting.
+#'
+#' @param ... Logical expression used for subsetting the data frames, e.g.
+#' \code{name == "pERK1" & time < 60}.
+#'
+#' \describe{
+#' To reproduce the known function \code{plot1}, \code{plot2} and \code{plot3},
+#' use:
+#' \item{plot1}{
+#' \code{plot_points} = 'original', \code{plot_line} = 'prediction'
+#' }
+#' \item{plot2}{
+#' \code{plot_points} = 'scaled', \code{plot_line} = 'aligned'
+#' }
+#' \item{plot3}{
+#' \code{plot_points} = 'aligned', \code{plot_line} = 'aligned'
+#' }
+#' }
+#'
+#' @import ggplot2 data.table
+#'
+#' @return ggplot object
+#'
+#' @export
+#' @author Severin Bang and Svenja Kemmer
+
+plot_align_me <- function(out_list,
+                          ...,
+                          plot_points = "aligned",
+                          plot_line = "aligned",
+                          spline = FALSE,
+                          scales = "free",
+                          align_zeros = TRUE,
+                          plot_caption = TRUE,
+                          ncol = NULL,
+                          my_colors = NULL,
+                          duplicate_zero_points = FALSE,
+                          my_order = NULL) {
+    if (FALSE) {
+        out_list <- blotIt_test3
+        plot_points <- "aligned"
+        plot_line <- "aligned"
+        spline <- FALSE
+        scales <- "free"
+        align_zeros <- TRUE
+        plot_caption <- TRUE
+        ncol <- NULL
+        my_colors <- NULL
+        duplicate_zero_points <- FALSE
+        my_order <- NULL
+    }
+    if (!plot_points %in% c("original", "scaled", "prediction", "aligned") |
+        !plot_line %in% c("original", "scaled", "prediction", "aligned")) {
+        stop(
+            "\n\t'plot_points' and 'plot_line' must each be one of
+            c('original', 'scaled', 'prediction', 'aligned')\n"
+        )
     }
 
-    # Construnct strings containing the values of the respective effects
-    scaling_strings <- Reduce(paste_, data[effects_values[[2]]])
-    distinguish_strings <- Reduce(paste_, data[effects_values[[1]]])
+    # if (class(out)[1] == "list") {
+    #     cat("Data is in form of list, continuing\n")
+    #     out <- out
+    # } else {
+    #     cat("Data is not yet in form of a list, passing it thorugh\n
+    #     \t'blotIt_out_to_list(out,use_factors = T)'\n")
+    #     out <- blotIt_out_to_list(out, use_factors = T)
+    # }
 
-    scaling_strings_unique <- unique(scaling_strings)
-    distinguish_strings_unique <- unique(distinguish_strings)
-
-    # Initialize matrix
-    block_matrix <- matrix(
-        0,
-        ncol = length(scaling_strings_unique),
-        nrow = length(distinguish_strings_unique)
-    )
-
-    # For every datapoint set the entry in the matrix to 1, corresponding to the
-    # index in the respective unique lists of fixed (row) and specific (col)
-    for (i in seq_len(nrow(data))) {
-        myrow <- which(distinguish_strings_unique == distinguish_strings[i])
-        mycol <- which(scaling_strings_unique == scaling_strings[i])
-        block_matrix[myrow, mycol] <- 1
-    }
-
-    # compile list of scalings
-    list_of_scalings <- analyze_blocks(block_matrix)
-
-    # Remove the "1"-column added above
-    if (!intercept) {
-        data <- data[, -which(colnames(data) == "1")]
-    }
-
-    # Compile the list
-    list_out <- lapply(
-        list_of_scalings,
-        function(l) {
-            data[distinguish_strings %in% distinguish_strings_unique[l], ]
-        }
-    )
-
-    # normalize the data
-    if (normalize_input) {
-        if (input_scale == "linear") {
-            for (i in seq_len(length(list_out))) {
-                list_out[[i]]$value <- list_out[[i]]$value /
-                    mean(list_out[[i]]$value)
-            }
+    # change plotting order from default
+    if (!is.null(my_order)) {
+        if (length(setdiff(levels(out_list[[1]]$name), my_order)) != 0) {
+            stop("my_order doesn't contain all protein names.")
         } else {
-            warning(
-                "'normalize_input == TRUE' is only competable with ",
-                "'input_scale == linear'. 'normalize_input' was ignored."
+            out_list$aligned$name <- factor(
+                out_list$aligned$name,
+                levels = my_order
+            )
+            out_list$scaled$name <- factor(
+                out_list$scaled$name,
+                levels = my_order
+            )
+            out_list$prediction$name <- factor(
+                out_list$prediction$name,
+                levels = my_order
+            )
+            out_list$original$name <- factor(
+                out_list$original$name,
+                levels = my_order
             )
         }
     }
 
-    return(list_out)
+
+    distinguish <- out_list$distinguish
+    scaling <- out_list$scaling
+
+    plot_list <- out_list
+
+    # duplicate 0 values for all doses
+    if (duplicate_zero_points) {
+        for (ndat in 1) {
+            dat <- plot_list[[ndat]]
+            subset_zeros <- copy(subset(dat, time == 0))
+            mydoses <- setdiff(unique(dat$dose), 0)
+            my_zeros_add <- NULL
+            for (d in 1:length(mydoses)) {
+                subset_zeros_d <- copy(subset_zeros)
+                subset_zeros_d$dose <- mydoses[d]
+                my_zeros_add <- rbind(my_zeros_add, subset_zeros_d)
+            }
+            dat <- rbind(dat, my_zeros_add)
+            plot_list[[ndat]] <- dat
+        }
+    }
+
+    # add columns containing the respective scaling and distinguish effects
+
+    # aligned
+    plot_list$aligned$distinguish <- do.call(
+        paste0,
+        plot_list$aligned[
+            ,
+            distinguish[!(distinguish %in% c("name", "time"))],
+            drop = FALSE
+        ]
+    )
+    plot_list$aligned$scaling <- NA
+
+    # scaled
+    plot_list$scaled$distinguish <- do.call(
+        paste0,
+        out_list$scaled[
+            ,
+            distinguish[!(distinguish %in% c("name", "time"))],
+            drop = FALSE
+        ]
+    )
+    plot_list$scaled$scaling <- do.call(
+        paste0,
+        out_list$scaled[, scaling[scaling != "name"], drop = FALSE]
+    )
+
+    # prediction
+    plot_list$prediction$distinguish <- do.call(
+        paste0,
+        out_list$prediction[
+            ,
+            distinguish[!(distinguish %in% c("name", "time"))],
+            drop = FALSE
+        ]
+    )
+    plot_list$prediction$scaling <- do.call(
+        paste0,
+        out_list$prediction[, scaling[scaling != "name"], drop = FALSE]
+    )
+
+    # original
+    plot_list$original$distinguish <- do.call(
+        paste0,
+        out_list$original[
+            ,
+            distinguish[!(distinguish %in% c("name", "time"))],
+            drop = FALSE
+        ]
+    )
+    plot_list$original$scaling <- do.call(
+        paste0,
+        out_list$original[, scaling[scaling != "name"], drop = FALSE]
+    )
+
+    plot_list_points <- plot_list[[plot_points]]
+    plot_list_line <- plot_list[[plot_line]]
+
+    plot_list_points <- subset(plot_list_points, ...)
+    plot_list_line <- subset(plot_list_line, ...)
+
+    legend.name <- paste(scaling, collapse = ", ")
+
+    # build Caption
+    used_errors <- list(
+        aligned = "Fisher Information",
+        scaled = "Propergated error model to common scale",
+        prediction = "Error model",
+        original = "None"
+    )
+
+    used_data <- list(
+        aligned = "Estimated true values",
+        scaled = "Original data scaled to common scale",
+        prediction = "Predictions from model evaluation on original scale",
+        original = "Original data"
+    )
+
+    caption_text <- paste0(
+        "Datapoints: ", used_data[[plot_points]], "\n",
+        "Errorbars: ", used_errors[[plot_points]], "\n",
+        "Line: ", used_data[[plot_line]], "\n",
+        if (plot_points != plot_line) {
+            paste0("Errorband: ", used_errors[[plot_line]], "\n")
+        },
+        "\n",
+        "Date: ", Sys.Date()
+    )
+
+    # we want to keep the x ticks!
+    if (scales == "distinguish") {
+        scales <- "free_x"
+    }
+
+
+
+    ## plot
+    if (plot_points == "aligned" & plot_line == "aligned") {
+        g <- ggplot(
+            data = plot_list_points,
+            aes(
+                x = time,
+                y = value,
+                group = distinguish,
+                color = distinguish,
+                fill = distinguish
+            )
+        )
+        g <- g + facet_wrap(~name, scales = scales, ncol = ncol)
+        if (is.null(my_colors)) {
+            # my_colors <- scale_color_brewer()
+            # # c(
+            # # "#000000",
+            # # "#C5000B",
+            # # "#0084D1",
+            # # "#579D1C",
+            # # "#FF950E",
+            # # "#4B1F6F",
+            # # "#CC79A7",
+            # # "#006400",
+            # # "#F0E442",
+            # # "#8B4513",
+            # # rep("gray", 100)
+            # # )
+            # g <- g + scale_color_manual("Condition", values = my_colors) +
+            #     scale_fill_manual("Condition", values = my_colors)
+        } else {
+            my_colors <- c(my_colors, rep("gray", 100))
+            g <- g + scale_color_manual("Condition", values = my_colors) +
+                scale_fill_manual("Condition", values = my_colors)
+        }
+    } else {
+        g <- ggplot(
+            data = plot_list_points,
+            aes(
+                x = time,
+                y = value,
+                group = scaling,
+                color = scaling,
+                fill = scaling
+            )
+        )
+        g <- g + facet_wrap(
+            ~ name * distinguish,
+            scales = scales,
+            ncol = ncol
+        )
+        if (is.null(my_colors)) {
+            # my_colors <- scale_color_brewer()
+            # # c(
+            # # "#000000",
+            # # "#C5000B",
+            # # "#0084D1",
+            # # "#579D1C",
+            # # "#FF950E",
+            # # "#4B1F6F",
+            # # "#CC79A7",
+            # # "#006400",
+            # # "#F0E442",
+            # # "#8B4513",
+            # # rep("gray", 100)
+            # # )
+            # g <- g + scale_color_manual("Scaling", values = my_colors) +
+            #     scale_fill_manual("Scaling", values = my_colors)
+        } else {
+            my_colors <- c(my_colors, rep("gray", 100))
+            g <- g + scale_color_manual("Scaling", values = my_colors) +
+                scale_fill_manual("Scaling", values = my_colors)
+        }
+    }
+
+
+    g <- g + geom_point(data = plot_list_points, size = 2)
+    g <- g + geom_errorbar(
+        data = plot_list_points,
+        aes(
+            ymin = value - sigma,
+            ymax = value + sigma
+        ),
+        size = 1,
+        width = 4
+    )
+
+
+
+    if (spline) {
+        g <- g + geom_errorbar(
+            data = plot_list_line,
+            aes(
+                ymin = value - sigma,
+                ymax = value + sigma
+            ),
+            width = 0
+        )
+        g <- g + geom_smooth(
+            data = plot_list_line,
+            se = FALSE,
+            method = "lm",
+            formula = y ~ poly(x, 3)
+        )
+    } else {
+        if (plot_points == plot_line | plot_line == "prediction") {
+            g <- g + geom_line(data = plot_list_line, size = 1)
+            if (plot_line == "prediction") {
+                g <- g + geom_ribbon(
+                    data = plot_list_line,
+                    aes(
+                        ymin = value - sigma,
+                        ymax = value + sigma
+                    ),
+                    alpha = 0.1,
+                    lty = 0
+                )
+            }
+        } else {
+            g <- g + geom_line(data = plot_list_line, size = 1, color = "grey")
+            g <- g + geom_ribbon(
+                data = plot_list_line,
+                aes(
+                    ymin = value - sigma,
+                    ymax = value + sigma,
+                    fill = "grey",
+                    color = "grey"
+                ),
+                alpha = 0.3,
+                lty = 0
+            )
+        }
+    }
+
+    g <- g + theme_bw(base_size = 20) +
+        theme(
+            legend.position = "top",
+            legend.key = element_blank(),
+            strip.background = element_rect(color = NA, fill = NA),
+            axis.line.x = element_line(size = 0.3, colour = "black"),
+            axis.line.y = element_line(size = 0.3, colour = "black"),
+            panel.grid.major.x = element_blank(),
+            panel.grid.major.y = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.border = element_blank(),
+            panel.background = element_blank(),
+            plot.margin = unit(c(0, 0.5, 0.5, 0.5), "cm")
+        )
+    g <- g + xlab("\nTime") + ylab("Signal\n")
+
+    if (align_zeros) {
+        if (plot_points != "original") {
+            # scale y-axes (let them start at same minimum determined by
+            # smallest value-sigma and end at individual ymax)
+            plot_list_points <- as.data.table(plot_list_points)
+            blank_data <- plot_list_points[
+                ,
+                list(ymax = max(value + sigma), ymin = min(value - sigma)),
+                by = c("name", "distinguish", "scaling")
+            ]
+            blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
+            blank_data[
+                ,
+                ":="(ymax = ymaximal(ymax)),
+                by = c("name", "distinguish", "scaling")
+            ] # protein specific maximum
+            blank_data <- melt(
+                blank_data,
+                id.vars = c("name", "distinguish", "scaling"),
+                measure.vars = c("ymax", "ymin"),
+                value.name = "value"
+            )
+            blank_data[, ":="(time = 0, variable = NULL)]
+            g <- g + geom_blank(
+                data = as.data.frame(blank_data),
+                aes(x = time, y = value)
+            )
+        }
+    }
+
+    if (plot_caption) {
+        g <- g + labs(caption = caption_text)
+    }
+
+
+    return(g)
 }

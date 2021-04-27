@@ -49,6 +49,9 @@
 #' @param average_techn_rep logical, indicates if the technical replicates
 #' should be averaged
 #'
+#' @param names_as_factors logical, indicates if the \code{name} columns of the
+#' output should be parsed as factors instead of characters.
+#'
 #' @param verbose logical, print out information about each fit
 #' @param normalize_input logical, if TRUE the input will be normalized before
 #' scaling. see \code{split_data}.
@@ -67,6 +70,9 @@
 #' alignment result containing an attribute "outputs":
 #'  a list of data frames
 #' \describe{
+#' \item{aligned}{the average_techn_repd data with the fixed effects and their
+#'                uncertainty, only. The result of the alignment
+#'                algorithm.}
 #' \item{prediction}{original data with value and sigma replaced by
 #'                   the predicted values and sigmas}
 #' \item{scaled}{original data with the values transformed according
@@ -74,21 +80,26 @@
 #'               the first parameter in \code{fixed}, e.g. "ys".
 #'               Sigma values are computed by error propagation
 #'               from the inverse model equation.}
-#' \item{aligned}{the average_techn_repd data with the fixed effects and their
-#'                uncertainty, only. The result of the alignment
-#'                algorithm.}
+#'
 #' \item{original}{the original data}
+#' \item{original_with_parameters}{the original data but with added columns
+#' containing the estimated parameters}
 #' \item{parameter}{original data augmented by parameter columns.
 #'                  Parameters in each row correspond to the levels of
 #'                  fixed, latent or error as passed to \code{align_me()}.
 #'                  Used for initialization or parameter values when
 #'                  refitting with modified model.}
+#' \item{distinguish}{names of the columns containing the distinguish effects}
+#' \item{scaling}{names of the columns containing the scaling effects}
 #' }
 #'
 #' The estimated parameters are returned by the attribute "parameters".
 #' @example inst/examples/example_align_me.R
 #' @seealso \link{read_wide} to read data in a wide column format and
 #' get it in the right format for \code{align_me()}.
+#'
+#' @importFrom stats D
+#'
 #' @export
 align_me <- function(data,
                      model = NULL,
@@ -100,6 +111,7 @@ align_me <- function(data,
                      normalize = TRUE,
                      average_techn_rep = FALSE,
                      verbose = FALSE,
+                     names_as_factors = TRUE,
                      normalize_input = TRUE) {
     if (FALSE) {
         if (FALSE) {
@@ -132,6 +144,7 @@ align_me <- function(data,
         input_scale <- "linear"
         normalize <- TRUE
         average_techn_rep <- FALSE
+        names_as_factors <- TRUE
         verbose <- TRUE
         normalize_input <- TRUE
     }
@@ -378,13 +391,6 @@ align_me <- function(data,
         function(myjac) parse(text = myjac)
     )
 
-    # if(!is.null(parameter_data)) {
-    #     print("NOT NULL")
-    # } else {
-    #     print("IS NULL")
-    # }
-    # generate the fits
-
     pass_parameter_list <- list(
         effects_values = effects_values,
         parameter_data = parameter_data,
@@ -508,6 +514,29 @@ align_me <- function(data,
         distinguish = effects_values[[1]],
         scaling = effects_values[[2]]
     )
+
+    if (names_as_factors == TRUE) {
+        return_list$aligned$name <- factor(
+            return_list$aligned$name,
+            levels = unique(return_list$aligned$name)
+        )
+        return_list$scaled$name <- factor(
+            return_list$scaled$name,
+            levels = unique(return_list$scaled$name)
+        )
+        return_list$prediction$name <- factor(
+            return_list$prediction$name,
+            levels = unique(return_list$prediction$name)
+        )
+        return_list$original$name <- factor(
+            return_list$original$name,
+            levels = unique(return_list$original$name)
+        )
+        return_list$original_with_parameters$name <- factor(
+            return_list$original_with_parameters$name,
+            levels = unique(return_list$original_with_parameters$name)
+        )
+    }
 
     # class(return_list) <- c("aligned", "data.frame")
 

@@ -1,7 +1,7 @@
 
 # get_symbols() -----------------------------------------------------------
 
-test_that("read_symbols()", {
+test_that("get_symbols()", {
     expect_equal(
         get_symbols("left1 ~ right11 + right12"),
         c("left1", "right11", "right12")
@@ -338,14 +338,14 @@ test_that("objective_function()", {
             0, 5, 10, 20, 30, 60, 240, 0
         ),
         value = c(
-            1.0289464,
-            1.2224292,
-            0.8726507,
-            0.9395381,
-            1.0130045,
-            0.9855736,
-            1.1674557,
-            0.8319320
+            1.0210929,
+            1.2130989,
+            0.8659901,
+            0.9323670,
+            1.0052727,
+            0.9780511,
+            1.1585450,
+            0.8255822
         ),
         sigma = c(
             NaN,
@@ -378,16 +378,28 @@ test_that("objective_function()", {
             "pAKT_2"
         ),
         error = c(
-            "pAKT",
-            "pAKT",
-            "pAKT",
-            "pAKT",
-            "pAKT",
-            "pAKT",
-            "pAKT",
-            "pAKT"
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1"
         )
     )
+    row.names(test_data_fit) <- c(
+        "pAKT1",
+        "pAKT2",
+        "pAKT3",
+        "pAKT4",
+        "pAKT5",
+        "pAKT6",
+        "pAKT7",
+        "pAKT8"
+    )
+
+
 
 
     test_parameters <- c(
@@ -410,7 +422,7 @@ test_that("objective_function()", {
             "pAKT_test", "pAKT_2"
         ),
         error = c(
-            "pAKT"
+            "pAKT_1"
         )
     )
 
@@ -432,7 +444,7 @@ test_that("objective_function()", {
         "pAKT_240_0Uml Epo",
         "pAKT_test",
         "pAKT_2",
-        "pAKT"
+        "pAKT_1"
     )
 
     test_mask <- generate_mask(
@@ -445,7 +457,7 @@ test_that("objective_function()", {
     test_model_expr <- parse(text = "yi[distinguish]/sj[scaling]")
     test_error_model <- parse(
         text = "(yi[distinguish]/sj[scaling])* sigmaR[error]"
-        )
+    )
 
     test_model_jacobian_expr <- list(
         distinguish = parse(text = "1/sj[scaling]"),
@@ -457,50 +469,70 @@ test_that("objective_function()", {
         distinguish = parse(text = "1/sj[scaling]*sigmaR[error]"),
         scaling = parse(
             text = "-(yi[distinguish]/sj[scaling]^2*sigmaR[error])"
-            ),
+        ),
         error = parse(text = "(yi[distinguish]/sj[scaling])")
     )
 
-    constraint_expr <- paste(text = "1e3 * (mean( yi ) - 1)")
+    test_constraint_expr <- parse(text = "1e3 * (mean( yi ) - 1)")
 
 
 
-    pass_parameter_list <- list(
+
+
+    test_pass_parameter_list <- list(
         parameters = test_parameters,
         input_scale = "linear",
         c_strength = test_c_strenth,
         model_expr = test_model_expr,
         error_model_expr = test_error_model,
         model_jacobian_expr = test_model_jacobian_expr,
-        error_model_jacobian_expr = test_error_model_jacobian_expr
+        error_model_jacobian_expr = test_error_model_jacobian_expr,
+        constraint_expr = test_constraint_expr
     )
 
-    pass_parameter_list2 <- list(
+    test_pass_parameter_list2 <- list(
         data_fit = test_data_fit,
         levels_list = test_levels_list,
-        parameters = test_parameters,
-        c_strength = test_c_strenth,
-        mask = test_mask
+        mask = test_mask,
+        effects_pars = test_effects_pars
     )
+
+
+    # * actual tests ----------------------------------------------------------
+
 
     expect_equal(
         objective_function(
             current_parameters = test_initial_parameters,
-            pass_parameter_list,
-            pass_parameter_list2,
-            calculate_derivative = FALSE
+            pass_parameter_list = test_pass_parameter_list,
+            pass_parameter_list2 = test_pass_parameter_list2,
+            calculate_derivative = TRUE
+        )$value,
+        0.12445657
+    )
+
+
+    expect_equal(
+        round(
+            objective_function(
+                current_parameters = test_initial_parameters,
+                pass_parameter_list = test_pass_parameter_list,
+                pass_parameter_list2 = test_pass_parameter_list2,
+                calculate_derivative = TRUE
+            )$gradient,
+            digits = 8
         ),
         c(
-            "yi" = 1,
-            "yi" = 1,
-            "yi" = 1,
-            "yi" = 1,
-            "yi" = 1,
-            "yi" = 1,
-            "yi" = 1,
-            "sj" = 1,
-            "sj" = 1,
-            "sigmaR" = 1
+            4.244916840,
+            1.482979920,
+            2.232102490,
+            2.126117550,
+            1.989399000,
+            2.042934290,
+            1.632636970,
+            -13.463094600,
+            -2.287992460,
+            15.751086860
         )
     )
 })
@@ -593,12 +625,210 @@ test_that("resolve_function()", {
         sigmaR = 1
     )
 
+    test_data_fit <- data.frame(
+        name = c(
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT",
+            "pAKT"
+        ),
+        time = c(
+            0, 5, 10, 20, 30, 60, 240, 0
+        ),
+        value = c(
+            1.0210929,
+            1.2130989,
+            0.8659901,
+            0.9323670,
+            1.0052727,
+            0.9780511,
+            1.1585450,
+            0.8255822
+        ),
+        sigma = c(
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN,
+            NaN
+        ),
+        distinguish = c(
+            "pAKT_0_0Uml Epo",
+            "pAKT_5_0Uml Epo",
+            "pAKT_10_0Uml Epo",
+            "pAKT_20_0Uml Epo",
+            "pAKT_30_0Uml Epo",
+            "pAKT_60_0Uml Epo",
+            "pAKT_240_0Uml Epo",
+            "pAKT_0_0Uml Epo"
+        ),
+        scaling = c(
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_test",
+            "pAKT_2"
+        ),
+        error = c(
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1",
+            "pAKT_1"
+        )
+    )
+    row.names(test_data_fit) <- c(
+        "pAKT1",
+        "pAKT2",
+        "pAKT3",
+        "pAKT4",
+        "pAKT5",
+        "pAKT6",
+        "pAKT7",
+        "pAKT8"
+    )
+
+
+
+
+    test_parameters <- c(
+        "distinguish" = "yi",
+        "scaling" = "sj",
+        "error" = "sigmaR"
+    )
+
+    test_levels_list <- list(
+        distinguish = c(
+            "pAKT_0_0Uml Epo",
+            "pAKT_5_0Uml Epo",
+            "pAKT_10_0Uml Epo",
+            "pAKT_20_0Uml Epo",
+            "pAKT_30_0Uml Epo",
+            "pAKT_60_0Uml Epo",
+            "pAKT_240_0Uml Epo"
+        ),
+        scaling = c(
+            "pAKT_test", "pAKT_2"
+        ),
+        error = c(
+            "pAKT_1"
+        )
+    )
+
+    test_effects_pars <- list(
+        distinguish_pars = "yi",
+        scaling_pars = "sj",
+        error_pars = "sigmaR"
+    )
+
+    test_c_strenth <- 1000
+
+    test_all_levels <- c(
+        "pAKT_0_0Uml Epo",
+        "pAKT_5_0Uml Epo",
+        "pAKT_10_0Uml Epo",
+        "pAKT_20_0Uml Epo",
+        "pAKT_30_0Uml Epo",
+        "pAKT_60_0Uml Epo",
+        "pAKT_240_0Uml Epo",
+        "pAKT_test",
+        "pAKT_2",
+        "pAKT_1"
+    )
+
+    test_mask <- generate_mask(
+        test_initial_parameters,
+        test_parameters,
+        test_all_levels,
+        test_data_fit
+    )
+
+    test_model_expr <- parse(text = "yi[distinguish]/sj[scaling]")
+    test_error_model <- parse(
+        text = "(yi[distinguish]/sj[scaling])* sigmaR[error]"
+    )
+
+    test_model_jacobian_expr <- list(
+        distinguish = parse(text = "1/sj[scaling]"),
+        scaling = parse(text = "-(yi[distinguish]/sj[scaling]^2)"),
+        error = parse(text = "0")
+    )
+
+    test_error_model_jacobian_expr <- list(
+        distinguish = parse(text = "1/sj[scaling]*sigmaR[error]"),
+        scaling = parse(
+            text = "-(yi[distinguish]/sj[scaling]^2*sigmaR[error])"
+        ),
+        error = parse(text = "(yi[distinguish]/sj[scaling])")
+    )
+
+    test_constraint_expr <- parse(text = "1e3 * (mean( yi ) - 1)")
+
+
+
+
+
+    test_pass_parameter_list <- list(
+        parameters = test_parameters,
+        input_scale = "linear",
+        c_strength = test_c_strenth,
+        model_expr = test_model_expr,
+        error_model_expr = test_error_model,
+        model_jacobian_expr = test_model_jacobian_expr,
+        error_model_jacobian_expr = test_error_model_jacobian_expr,
+        constraint_expr = test_constraint_expr
+    )
+
+    test_pass_parameter_list2 <- list(
+        data_fit = test_data_fit,
+        levels_list = test_levels_list,
+        mask = test_mask,
+        effects_pars = test_effects_pars
+    )
+
+
+
+    # * actual tests ----------------------------------------------------------
+
+
     expect_equal(
         resolve_function(
             current_parameters = test_initial_parameters,
-            pass_parameter_list = pass_parameter_list,
-            pass_parameter_list2 = pass_parameter_list2,
-            calculate_derivative = calculate_derivative
-        ),
+            pass_parameter_list = test_pass_parameter_list,
+            pass_parameter_list2 = test_pass_parameter_list2,
+            calculate_derivative = FALSE
+        )$residuals,
+        c(
+            -0.0210929,
+            -0.2130989,
+            0.1340099,
+            0.0676330,
+            -0.0052727,
+            0.0219489,
+            -0.1585450,
+            0.1744178,
+            1.0000000,
+            1.0000000,
+            1.0000000,
+            1.0000000,
+            1.0000000,
+            1.0000000,
+            1.0000000,
+            1.0000000,
+            0.0000000
+        )
     )
 })

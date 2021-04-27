@@ -15,6 +15,7 @@ align_me(
   normalize = TRUE,
   average_techn_rep = FALSE,
   verbose = FALSE,
+  names_as_factors = TRUE,
   normalize_input = TRUE
 )
 }
@@ -64,6 +65,9 @@ should be averaged}
 
 \item{verbose}{logical, print out information about each fit}
 
+\item{names_as_factors}{logical, indicates if the \code{name} columns of the
+output should be parsed as factors instead of characters.}
+
 \item{normalize_input}{logical, if TRUE the input will be normalized before
 scaling. see \code{split_data}.}
 }
@@ -72,6 +76,9 @@ Object of class \code{aligned}, i.e. a data frame of the
 alignment result containing an attribute "outputs":
  a list of data frames
 \describe{
+\item{aligned}{the average_techn_repd data with the fixed effects and their
+               uncertainty, only. The result of the alignment
+               algorithm.}
 \item{prediction}{original data with value and sigma replaced by
                   the predicted values and sigmas}
 \item{scaled}{original data with the values transformed according
@@ -79,15 +86,17 @@ alignment result containing an attribute "outputs":
               the first parameter in \code{fixed}, e.g. "ys".
               Sigma values are computed by error propagation
               from the inverse model equation.}
-\item{aligned}{the average_techn_repd data with the fixed effects and their
-               uncertainty, only. The result of the alignment
-               algorithm.}
+
 \item{original}{the original data}
+\item{original_with_parameters}{the original data but with added columns
+containing the estimated parameters}
 \item{parameter}{original data augmented by parameter columns.
                  Parameters in each row correspond to the levels of
                  fixed, latent or error as passed to \code{align_me()}.
                  Used for initialization or parameter values when
                  refitting with modified model.}
+\item{distinguish}{names of the columns containing the distinguish effects}
+\item{scaling}{names of the columns containing the scaling effects}
 }
 
 The estimated parameters are returned by the attribute "parameters".

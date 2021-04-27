@@ -11,6 +11,8 @@
 #' @return data frame with columns "name", "time", "value" and other
 #' columns describing the measurements.
 #'
+#' @importFrom utils getParseData
+#'
 #' @noRd
 get_symbols <- function(char, exclude = NULL) {
     # Parse input data
@@ -102,6 +104,8 @@ identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
 #' @param x string in which \code{what} will be replaced by \code{by}
 #'
 #' @return string, \code{x} with the replaced object.
+#'
+#' @importFrom utils getParseData
 #'
 #' @noRd
 #'
@@ -213,6 +217,94 @@ analyze_blocks <- function(block_matrix) {
     }
 
     return(r_components)
+}
+
+
+
+# split_for_scaling()  ----------------------------------------------------
+
+
+#' split_data
+#'
+#' Split data in independent blocks according to distinguish and scaling
+#' variables as being defined for \link{align_me}. Each block will be given an
+#' individual scaling factor.
+#'
+#' @param data data frame with columns "name", "time", "value" and others
+#' @param effects_values two-sided formula, see \link{align_me}
+#' @param scaling two-sided formula, see \link{align_me}
+#' @param normalize_input logical, if set to TRUE, the input data will be
+#' normalized by dividing all entries belonging to one scaling factor by their
+#'  respective mean. This prevents convergence failure on some hardware when the
+#'  data for different scaling effects differ by to many orders of magnitude.
+#' @return list of data frames
+#'
+#' @noRd
+split_for_scaling <- function(data,
+                              effects_values,
+                              normalize_input,
+                              input_scale) {
+    if (!"1" %in% colnames(data)) {
+        data["1"] <- 1
+        intercept <- FALSE
+    } else {
+        intercept <- TRUE
+    }
+
+    # Construnct strings containing the values of the respective effects
+    scaling_strings <- Reduce(paste_, data[effects_values[[2]]])
+    distinguish_strings <- Reduce(paste_, data[effects_values[[1]]])
+
+    scaling_strings_unique <- unique(scaling_strings)
+    distinguish_strings_unique <- unique(distinguish_strings)
+
+    # Initialize matrix
+    block_matrix <- matrix(
+        0,
+        ncol = length(scaling_strings_unique),
+        nrow = length(distinguish_strings_unique)
+    )
+
+    # For every datapoint set the entry in the matrix to 1, corresponding to the
+    # index in the respective unique lists of fixed (row) and specific (col)
+    for (i in seq_len(nrow(data))) {
+        myrow <- which(distinguish_strings_unique == distinguish_strings[i])
+        mycol <- which(scaling_strings_unique == scaling_strings[i])
+        block_matrix[myrow, mycol] <- 1
+    }
+
+    # compile list of scalings
+    list_of_scalings <- analyze_blocks(block_matrix)
+
+    # Remove the "1"-column added above
+    if (!intercept) {
+        data <- data[, -which(colnames(data) == "1")]
+    }
+
+    # Compile the list
+    list_out <- lapply(
+        list_of_scalings,
+        function(l) {
+            data[distinguish_strings %in% distinguish_strings_unique[l], ]
+        }
+    )
+
+    # normalize the data
+    if (normalize_input) {
+        if (input_scale == "linear") {
+            for (i in seq_len(length(list_out))) {
+                list_out[[i]]$value <- list_out[[i]]$value /
+                    mean(list_out[[i]]$value)
+            }
+        } else {
+            warning(
+                "'normalize_input == TRUE' is only competable with ",
+                "'input_scale == linear'. 'normalize_input' was ignored."
+            )
+        }
+    }
+
+    return(list_out)
 }
 
 
@@ -376,7 +468,7 @@ input_check <- function(data = NULL,
 #'
 #' @return A list of \code{data.frame}S with the entries:
 #' \describe{
-#'  \item{\code{out_predicted}}{
+#'  \item{\code{out_prediction}}{
 #'      \code{data.frame} with the columns \code{name}, \code{time},
 #'      \code{value}, \code{sigma}, \code{distinguish}, \code{scaling} and
 #'      \code{error}.
@@ -457,6 +549,10 @@ input_check <- function(data = NULL,
 #'      }
 #'  }
 #' }
+#'
+#' @importFrom rootSolve multiroot
+#' @importFrom trust trust
+#' @importFrom MASS ginv
 #'
 #' @noRd
 
@@ -694,21 +790,21 @@ scale_target <- function(current_data,
             "converged:", fit_result$converged, ", iterations:",
             fit_result$iterations, "\n"
         )
-        cat("-2*LL: ", fit_result$value, "on", nrow(data_fit) +
+        cat("-2*LL: ", fit_result$value, "on", nrow(current_data) +
             normalize - length(fit_result$argument), "degrees of freedom\n")
     }
 
     attr(parameter_table, "value") <- fit_result$value
-    attr(parameter_table, "df") <- nrow(data_fit) + normalize -
-        length(data_fit$argument)
+    attr(parameter_table, "df") <- nrow(current_data) + normalize -
+        length(fit_result$argument)
 
     # Predicted data
-    out_predicted <- data_fit
-    out_predicted$sigma <- fit_result$sigma * bessel
-    out_predicted$value <- fit_result$prediction
+    out_prediction <- current_data
+    out_prediction$sigma <- fit_result$sigma * bessel
+    out_prediction$value <- fit_result$prediction
 
     # Initialize list for scaled values
-    initial_values_scaled <- rep(0, nrow(data_fit))
+    initial_values_scaled <- rep(0, nrow(current_data))
     if (verbose) {
         cat("Inverting model ... ")
     }
@@ -802,7 +898,7 @@ scale_target <- function(current_data,
         out_orig_w_parameters[[parameters[k]]] <- parameter_table$value[index]
     }
     out <- list(
-        out_predicted,
+        out_prediction,
         out_scaled,
         out_aligned,
         current_data,
@@ -1085,7 +1181,8 @@ rss_model <- function(par_list,
     with(
         # paste list with entries: name, time, value, sigma, the effects and
         # their paramters
-        c(as.list(data_fit), par_list), {
+        c(as.list(data_fit), par_list),
+        {
             # Generate lists var and prediction with <NoOfMeasurements> entries
             # and initialize the it with 1
             prediction <- var <- rep(1, length(value))
@@ -1220,7 +1317,7 @@ objective_function <- function(current_parameters,
     # Retrieve residuals of model, errormodel and constraint as well as
     # the derivatives.
     residuals <- calculated_residuals[1:no_data]
-    variances <- calculated_residuals[(no_data + 1):(2 * no_data)]
+    variances <- calculated_residuals[seq((no_data + 1), (2 * no_data))]
     constraint <- calculated_residuals[2 * no_data + 1]
     residual_deriv <- attr(calculated_residuals, "residual_deriv")
     variance_deriv <- attr(calculated_residuals, "variance_deriv")
@@ -1348,7 +1445,6 @@ evaluate_model <- function(initial_parameters,
     effects_pars <- pass_parameter_list$effects_pars
     model_expr <- pass_parameter_list$model_expr
     data_fit <- pass_parameter_list2$data_fit
-    # initial_parameters <- pass_parameter_list2$initial_parameters
 
 
 
@@ -1425,4 +1521,59 @@ evaluate_model_jacobian <- function(initial_parameters,
     derivative_values <- with(my_list, eval(model_derivertive_expr))
 
     return(derivative_values)
+}
+
+
+
+# ymaximal() --------------------------------------------------------------
+
+#' Determine the maximal y values for plots
+#'
+#' A method producing a list of y values that will result in a eye pleasing
+#' set of y tics when used in ggplot. Part of \link{plot_align_me}
+#'
+#' @param x numerical vector containing the y data which will be used to
+#' determine the set of y max
+#'
+#' @return numerical vector with the maximal y values.
+#'
+#' @noRd
+ymaximal <- function(x) {
+    rx <- round(x, 1)
+    lower <- floor(x)
+    upper <- ceiling(x)
+    lowdiff <- rx - lower
+    uppdiff <- upper - rx
+
+    if (x > 5) {
+        if (upper %% 2 == 0) {
+            out <- upper
+        } else {
+            out <- lower + 1
+        }
+    } else {
+        if (x < 2) {
+            if (rx > x) {
+                if (rx %% 0.2 == 0) {
+                    out <- rx
+                } else {
+                    out <- rx + 0.1
+                }
+            } else {
+                if (rx %% 0.2 != 0) {
+                    out <- rx + 0.1
+                } else {
+                    out <- rx + 0.2
+                }
+            }
+        } else {
+            if (lowdiff < uppdiff) {
+                out <- lower + 0.5
+            } else {
+                out <- upper
+            }
+        }
+    }
+
+    return(out)
 }
