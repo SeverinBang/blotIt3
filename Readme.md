@@ -52,7 +52,7 @@ imported_data <- read_wide(
 The result is then a long table of the form
 
 |    |time| condition| ID|  name |    value|
-    |--- | --- | --- | --- | ---|--- |
+|--- | --- | --- | --- | ---|--- |
 pAKT1|       0|  0Uml Epo|  1|  pAKT| 116.83827
 pAKT2|       5|  0Uml Epo|  1|  pAKT| 138.80850
 pAKT3|      10|  0Uml Epo|  1|  pAKT|  99.09068
@@ -60,7 +60,7 @@ pAKT4|      20|  0Uml Epo|  1|  pAKT| 106.68584
 pAKT5|      30|  0Uml Epo|  1|  pAKT| 115.02805
 pAKT6|      60|  0Uml Epo|  1|  pAKT| 111.91323
 pAKT7|     240|  0Uml Epo|  1|  pAKT| 132.56618
-  ...|...| ...| ...|...|...|
+|...|...| ...| ...|...|...|
 
 While the first (nameles) colums just contains (unique) row names. New are the columns `name` and `value`. While the column names of the original file are pasted in the former, the latter contains the respective values.
 The data.frame `imported_data` can now be passed to the main function.
