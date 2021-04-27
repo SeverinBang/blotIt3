@@ -1,3 +1,62 @@
+# blotIt3 - a framework for alignment of biological replicate data
+
+The present package is a rewritten version of [blotIt2](https://github.com/dkaschek/blotIt2) by Daniel Kaschek. The aim of this toolbox is to scale biological replicate data to a common scale, making the quantitative data of different gels comparable.
+
+## System preperation
+
+blotIt3 requires the `R` packages `utils, MASS, data.table, ggplot2, rootSolve` and `trust`. Additionally, the package `devtools` is needed to install blotIt3 from github. If not already done, the required packages can be installed by executing
+
+```r
+install.packages(c("utils", "MASS", "data.table", "ggplot2", "rootSolve", "trust", "devtools"))
+```
+blotIt3 then is installed via `devtools`:
+```r
+devtools::install_github("SeverinBang/blotIt3")
+```
+## Usage
+
+### Data import
+First, the packe is imported
+```r
+library(blotIt3)
+```
+A .csv file is imported and is formated by the function `read_wide`. An example data file is supplied. It can be accessed by 
+```r
+example_data_path <- system.file(
+                "extdata", "sim_data_wide.csv",
+                package = "blotIt3"
+            )
+```
+This reads out the provided example file, transferes it to a temporary location and stores the path to this temporary location in `example_data_path`.
+The example file is structured as follows
+|time|	condition|	ID|	pAKT|	pEPOR|	pJAK2|...|
+|--- | --- | --- | --- | ---|--- | ---|
+|0	|0Uml Epo	|1	|116.838271399017|	295.836863524109| |...
+|5	|0Uml Epo	|1	|138.808500374087|	245.229971713582| |...
+|...|...|...|...|...|...|...
+0	|0Uml Epo	|2	|94.4670174938645|		|293.604761934545|	...
+5	|0Uml Epo	|2	|	|	|398.958892340432|	...
+|...|...|...|...|...|...|...
+
+The first three columns contain descriptional data: timepoints, measurement conditions and IDs (e.g. the IDs of the different gels). All following columns contain the measurements of different targets, with the first row containing the names and the following the measurement values corresponding to the time, condition and ID stated in the first columns.
+
+The information which columns contain discriptions has to be passed to `read_wide`:
+```r
+imported_data <- read_wide(
+    file = example_data_path, # path to the example file
+    description = seq(1,3), # Indices of columns containing the information
+    sep = ",", # sign seperating the colums
+    dec = "." # decimal sign
+)
+```
+The result is then a long table of the form
+
+|    |time| condition| ID|  name |    value|
+    |--- | --- | --- | --- | ---|--- |
+pAKT1|       0|  0Uml Epo|  1|  pAKT| 116.83827
+pAKT2|       5|  0Uml Epo|  1|  pAKT| 138.80850
+pAKT3|      10|  0Uml Epo|  1|  pAKT|  99.09068
+pAKT4|      20|  0Uml Epo|  1|  pAKT| 106.68584
 pAKT5|      30|  0Uml Epo|  1|  pAKT| 115.02805
 pAKT6|      60|  0Uml Epo|  1|  pAKT| 111.91323
 pAKT7|     240|  0Uml Epo|  1|  pAKT| 132.56618
