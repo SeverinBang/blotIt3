@@ -70,33 +70,34 @@
 #' alignment result containing an attribute "outputs":
 #'  a list of data frames
 #' \describe{
-#' \item{aligned}{the average_techn_repd data with the fixed effects and their
-#'                uncertainty, only. The result of the alignment
-#'                algorithm.}
-#' \item{prediction}{original data with value and sigma replaced by
-#'                   the predicted values and sigmas}
-#' \item{scaled}{original data with the values transformed according
-#'               to the inverse model, i.e. \code{model} solved for
-#'               the first parameter in \code{fixed}, e.g. "ys".
-#'               Sigma values are computed by error propagation
-#'               from the inverse model equation.}
+#' \item{aligned}{data.frame with the original column names plus the column
+#'     \code{sigma}. Each set of unique distinguish effects i.e. biological
+#'     different condition (e.g. time point, target and treatment) has one set
+#'     of \code{value} and \code{sigma}. The values are the estimated true
+#'     values i.e. the determined distinguish parameters. The errors in the
+#'     \code{sigma} column are estimated by employing the fisher information
+#'     to quantify the uncertainty of the respective fit. Both, the value and
+#'     its error are on the common scale.}
+#' \item{scaled}{The original measurements scaled to common scale by applying
+#'     inverse model. The errors are the result of the evaluation of the error
+#'     model and then also scaled to common scale by use of Gaussian error
+#'     propagation.}
+#' \item{prediction}{Original data with \code{value} replaced by the prediction
+#'     (evaluation of the model with the fitted parameters), and \code{sigma}
+#'     from the evaluation of the error model. Both are on the original scale.
+#'     }
 #'
-#' \item{original}{the original data}
-#' \item{original_with_parameters}{the original data but with added columns
-#' containing the estimated parameters}
-#' \item{parameter}{original data augmented by parameter columns.
-#'                  Parameters in each row correspond to the levels of
-#'                  fixed, latent or error as passed to \code{align_me()}.
-#'                  Used for initialization or parameter values when
-#'                  refitting with modified model.}
-#' \item{distinguish}{names of the columns containing the distinguish effects}
-#' \item{scaling}{names of the columns containing the scaling effects}
+#' \item{original}{The original data as passed as  \code{data}.}
+#' \item{original_with_parameters}{The original data but with added columns
+#'     containing the estimated parameters}
+#' \item{distinguish}{Names of the columns containing the distinguish effects}
+#' \item{scaling}{Names of the columns containing the scaling effects}
 #' }
 #'
 #' The estimated parameters are returned by the attribute "parameters".
 #' @example inst/examples/example_align_me.R
 #' @seealso \link{read_wide} to read data in a wide column format and
-#' get it in the right format for \code{align_me()}.
+#' get it in the right format for \code{align_me}.
 #'
 #' @importFrom stats D
 #'

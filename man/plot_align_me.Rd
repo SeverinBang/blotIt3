@@ -2,7 +2,7 @@
 % Please edit documentation in R/02_exported_functions.R
 \name{plot_align_me}
 \alias{plot_align_me}
-\title{All-in-one plot function for blotIt()}
+\title{All-in-one plot function for blotIt3}
 \usage{
 plot_align_me(
   out_list,

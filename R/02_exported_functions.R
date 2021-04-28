@@ -88,7 +88,7 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 
 
 
-#' All-in-one plot function for blotIt()
+#' All-in-one plot function for blotIt3
 #'
 #' Takes the output of \link{align_me} and generates graphs. Which data will be
 #' plotted can then be specified separately.

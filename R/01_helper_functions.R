@@ -750,6 +750,7 @@ scale_target <- function(current_data,
                   uncertainties might be underestimated.")
     }
 
+# * parameter table -------------------------------------------------------
     # Generate parameter table
     parameter_table <- data.frame(
         name = current_name,
@@ -798,6 +799,8 @@ scale_target <- function(current_data,
     attr(parameter_table, "df") <- nrow(current_data) + normalize -
         length(fit_result$argument)
 
+
+# * out_prediction --------------------------------------------------------
     # Predicted data
     out_prediction <- current_data
     out_prediction$sigma <- fit_result$sigma * bessel
@@ -810,6 +813,7 @@ scale_target <- function(current_data,
     }
 
 
+# * out_scaled ------------------------------------------------------------
     values_scaled <- try(
         # my_multiroot
         rootSolve::multiroot(
@@ -856,7 +860,8 @@ scale_target <- function(current_data,
         out_scaled$sigma <- sigmas_scaled
     }
 
-    # Aligned
+
+# * out_aligned -----------------------------------------------------------
     no_initial <- length(levels_list[[1]])
 
     # Use one datapoint per unique set of fixed parameters
@@ -885,7 +890,7 @@ scale_target <- function(current_data,
     }
 
 
-    # Get the original data
+# * out_orig_w_parameters -------------------------------------------------
     out_orig_w_parameters <- current_data
     for (k in seq_along(parameters)) {
         effect <- names(parameters)[k]
@@ -905,6 +910,9 @@ scale_target <- function(current_data,
         out_orig_w_parameters,
         parameter_table
     )
+
+
+
 
     return(out)
 }
