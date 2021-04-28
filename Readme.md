@@ -109,7 +109,7 @@ The result of `align_me()` is a list with the entries
 `blotIt3` provides _one_ plotting function `plot_align_me()` which data set will be plotted can be specified per parameter
 ```r
 plot_align_me(
-    out_list = blotIt_test3,
+    out_list = scaled_data,
     plot_points = "aligned",
     plot_line = "aligned",
     spline = FALSE,
