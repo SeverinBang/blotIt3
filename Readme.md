@@ -2,6 +2,8 @@
 
 The present package is a rewritten version of [blotIt2](https://github.com/dkaschek/blotIt2) by Daniel Kaschek. The aim of this toolbox is to scale biological replicate data to a common scale, making the quantitative data of different gels comparable.
 
+Please note that blotIt3 and blotIt2 *can* be used in parallel. All functions have different names, so they can not only be installed but also loaded and used simultaneously (great for double checking).
+
 ## System preperation
 
 blotIt3 requires the `R` packages `utils, MASS, data.table, ggplot2, rootSolve` and `trust`. Additionally, the package `devtools` is needed to install blotIt3 from github. If not already done, the required packages can be installed by executing
