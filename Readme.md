@@ -16,18 +16,18 @@ devtools::install_github("SeverinBang/blotIt3")
 ## Usage
 
 ### Data import
-First, the packe is imported
+First, the package is imported
 ```r
 library(blotIt3)
 ```
-A .csv file is imported and is formated by the function `read_wide`. An example data file is supplied. It can be accessed by 
+A .csv file is imported and is formatted by the function `read_wide`. An example data file is supplied. It can be accessed by 
 ```r
 example_data_path <- system.file(
                 "extdata", "sim_data_wide.csv",
                 package = "blotIt3"
             )
 ```
-This reads out the provided example file, transferes it to a temporary location and stores the path to this temporary location in `example_data_path`.
+This reads out the provided example file, transfers it to a temporary location and stores the path to this temporary location in `example_data_path`.
 The example file is structured as follows
 |time|	condition|	ID|	pAKT|	pEPOR|	pJAK2|...|
 |--- | --- | --- | --- | ---|--- | ---|
@@ -38,9 +38,9 @@ The example file is structured as follows
 5	|0Uml Epo	|2	|	|	|398.958892340432|	...
 |...|...|...|...|...|...|...
 
-The first three columns contain descriptional data: timepoints, measurement conditions and IDs (e.g. the IDs of the different gels). All following columns contain the measurements of different targets, with the first row containing the names and the following the measurement values corresponding to the time, condition and ID stated in the first columns.
+The first three columns contain description data: time points, measurement conditions and IDs (e.g. the IDs of the different gels). All following columns contain the measurements of different targets, with the first row containing the names and the following the measurement values corresponding to the time, condition and ID stated in the first columns.
 
-The information which columns contain discriptions has to be passed to `read_wide`:
+The information which columns contain descriptions has to be passed to `read_wide`:
 ```r
 imported_data <- read_wide(
     file = example_data_path, # path to the example file
@@ -62,7 +62,7 @@ pAKT6|      60|  0Uml Epo|  1|  pAKT| 111.91323
 pAKT7|     240|  0Uml Epo|  1|  pAKT| 132.56618
 |...|...| ...| ...|...|...|
 
-While the first (nameles) colums just contains (unique) row names. New are the columns `name` and `value`. While the column names of the original file are pasted in the former, the latter contains the respective values.
+While the first (nameless) columns just contains (unique) row names. New are the columns `name` and `value`. While the column names of the original file are pasted in the former, the latter contains the respective values.
 The data.frame `imported_data` can now be passed to the main function.
 ### Scale data
 The full function call is
@@ -83,11 +83,11 @@ scaled_data <- align_me(
 ```
 We will go now through the parameters individually:
 - `data` A long table, usually the output of `read_wide`
-- `model` A formula like deskribing the model used for aligning. The present one `yi / sj` means that the measured values `Y_i` are the real values `yi` scaled by scaling factors `sj`. The model therefore is the real value devided by the corresponding scaling factor.
+- `model` A formula like describing the model used for aligning. The present one `yi / sj` means that the measured values `Y_i` are the real values `yi` scaled by scaling factors `sj`. The model therefore is the real value divided by the corresponding scaling factor.
 - `error_model` A description of which errors affect the data. Here, only a relative error is present, where the parameter `sigmaR` is scaled by the respective `value`
-- `distinguish` Discription of which parameter (left hand side of the tilde) represented by which columns (right hand side of the tilde) contain the "distinguisable effects". In the present example, the model states that the real value is represented by `yi` -- which is the left hand side of the present `distinguish` entry. The present right hand side is "name", "time" and "condition".
+- `distinguish` Description of which parameter (left hand side of the tilde) represented by which columns (right hand side of the tilde) contain the "distinguishable effects". In the present example, the model states that the real value is represented by `yi` -- which is the left hand side of the present `distinguish` entry. The present right hand side is "name", "time" and "condition".
 In short: we state that the entries "name", "time" and "condition" contain _real_, biological differences.
-- `scaling` Same as above, but here is defined which colums contain identificators of different scaling. Here it is "name" and "ID", meaning that measurements with differ in this effects, (but have the same `distinguish` effects) are scaled uppod another.
+- `scaling` Same as above, but here is defined which columns contain identificators of different scaling. Here it is "name" and "ID", meaning that measurements with differ in this effects, (but have the same `distinguish` effects) are scaled upon another.
 - `error` Describes how the error affects the values individually. The present formulation means, that the error parameter is _not_ individually adjusted.
 - `input_scale` Describes the scale of the present data. `align_me()` accepts "linear", "log", "log2" and "log10". Please be aware the that in the current alpha stage, only "linear" was tested.
 - `average_techn_rep` A logical parameter that indicates, if technical replicates should be averaged before the scaling.
@@ -95,8 +95,8 @@ In short: we state that the entries "name", "time" and "condition" contain _real
 - `normalize_input` If set to `TRUE`, the data will be scaled before the actual scaling. This means that the raw input will be scaled to a common order of magnitude before the scaling parameters will be calculated. This is only a computational aid, to eliminate a rare fail of convergence when the different values differ by many orders of magnitude. Setting this to `TRUE` makes only sense (and is only supported) for `input_scale = "linear"`.
 
 The result of `align_me()` is a list with the entries
-- `aligned` A `data.frame` with the columns containing the distinguish effects as well as the columns `value` containing the "estimated true values" and `sigma` containing the uncertainty of the fits. Both are on comon 
-- `scaled` The original data but with the values scaled to common scale and errors from the evaluation of the error model, also scaled to comon scale (obaying Gaussian error propagation).
+- `aligned` A `data.frame` with the columns containing the distinguish effects as well as the columns `value` containing the "estimated true values" and `sigma` containing the uncertainty of the fits. Both are on common 
+- `scaled` The original data but with the values scaled to common scale and errors from the evaluation of the error model, also scaled to common scale (obeying Gaussian error propagation).
 - `prediction` The scales and sigma are from the evaluation of the respective models (on original scale).
 - `original` Just the original parameters
 - `original_with_parameters` As above but with additional columns for the estimated parameters. 
@@ -122,11 +122,11 @@ plot_align_me(
 ```
 The parameters again are:
 - `out_list` the result of `align_me()`
-- `plot_points` It can seperately specified which data sets should be plotted as dots and as line. Here te data set for the dots is defined. It can be either of `original`, `scaled`, `prediction` or `aligned`.
+- `plot_points` It can separately specified which data sets should be plotted as dots and as line. Here the data set for the dots is defined. It can be either of `original`, `scaled`, `prediction` or `aligned`.
 - `plot_line` Same above but for the line.
-- `spline` Logical parameter, if set to `TRUE`, the line ploted will be not straight lines connecting points but a smooth spline.
+- `spline` Logical parameter, if set to `TRUE`, the line plotted will be not straight lines connecting points but a smooth spline.
 - `scales` String passed as `scales` argument to `facet_wrap`.
-- `align_zeros` Logical parameter, if set to `TRUE` the zero ticks will be aligned throughout all the sub plots, although the axis canb have different scales.
+- `align_zeros` Logical parameter, if set to `TRUE` the zero ticks will be aligned throughout all the sub plots, although the axis can have different scales.
 - `plot_caption` Logical parameter, indicating if a caption describing which data is plotted should be added to the plot.
 - `ncol` Numerical passed as `ncol` argument to `facet_wrap`.
 - `my_colors` list of custom color values as taken by the `values` argument in the `scale_color_manual` method for `ggplot` objects, if not set the default `ggplot` color scheme is used.
