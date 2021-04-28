@@ -135,3 +135,7 @@ The parameters again are:
 - `duplicate_zero_points` Logical, if set `TRUE` all zero time points are assumed to belong to the first condition. E.g. when the different conditions consist of treatments added at time zero. Default is `FALSE`.
 - `my_order` Optional list of target names in the custom order that will be used for faceting
 - `...` Logical expression used for subsetting the data frames, e.g. `name == "pAKT" & time < 60`
+
+
+### Licence:
+[GPL-3](https://www.gnu.org/licenses/gpl-3.0.en.html)
