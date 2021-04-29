@@ -34,3 +34,4 @@
  .settings
  .tm_properties
 tests/my_test/
+inst/stuff/

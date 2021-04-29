@@ -211,7 +211,7 @@ align_me <- function(data,
 
     # Generate unique list of targets
     targets <- make.unique(
-        sapply(to_be_scaled, function(d) as.character(d$name)[1]),
+        vapply(to_be_scaled, function(d) as.character(d$name)[1],""),
         sep = "_"
     )
 

@@ -531,6 +531,57 @@ plot_align_me <- function(out_list,
 #' @return list with the log-likelihood ratio, statistical information and the
 #' numerical p-value calculated by the evaluating the chi-squared distribution
 #' at the present log-likelihood ratio with the current degrees of freedom.
+#'
+#' @examples
+#' ## load provided example data file
+#' lrr_data_path  <- system.file(
+#'     "extdata", "example_llr_test.csv",
+#'     package = "blotIt3"
+#' )
+#'
+#' ## import data
+#' llr_data <- read_wide(
+#'     file = lrr_data_path,
+#'     description = seq(1,4),
+#'     sep = ",",
+#'     dec = "."
+#' )
+#'
+#' ## generate H0: the buffer column is not named as a distinguish effect e.g.
+#' ## not considered as a biological different condition
+#' H0 <- align_me(
+#'     data = llr_data3,
+#'     model = "yi / sj",
+#'     error_model = "value * sigmaR",
+#'     distinguish = yi ~ name + time + stimmulus,
+#'     scaling = sj ~ name + ID,
+#'     error = sigmaR ~ name + 1,
+#'     input_scale = "linear",
+#'     normalize = TRUE,
+#'     average_techn_rep = FALSE,
+#'     verbose = FALSE,
+#'     normalize_input = TRUE
+#' )
+#'
+#' ## generate H1: here the buffer column is named in the distinguish parameter
+#' ## therefore different entries are considered as biologically different
+#' H1 <- align_me(
+#'     data = llr_data3,
+#'     model = "yi / sj",
+#'     error_model = "value * sigmaR",
+#'     distinguish = yi ~ name + time + stimmulus + buffer,
+#'     scaling = sj ~ name + ID,
+#'     error = sigmaR ~ name + 1,
+#'     input_scale = "linear",
+#'     normalize = TRUE,
+#'     average_techn_rep = FALSE,
+#'     verbose = FALSE,
+#'     normalize_input = TRUE
+#' )
+#'
+#' ## perform test
+#' llr_test(H0, H1)
+#'
 #' @export
 llr_test <- function(H0, H1, check = TRUE) {
 
