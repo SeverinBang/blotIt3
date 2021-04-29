@@ -90,8 +90,22 @@
 #' \item{original}{The original data as passed as  \code{data}.}
 #' \item{original_with_parameters}{The original data but with added columns
 #'     containing the estimated parameters}
+#'
+#' \item{parameter}{Parameter table with the columns: \code{name}: the name of
+#'     the current target, \code{level}: the pasted unique set of effects
+#'     (distinguish, scaling or error), \code{parameter}: the parameter
+#'     identifier as defined in the (error) model, \code{value} and \code{sigma}
+#'     containing the determined values and corresponding errors, \code{nll}:
+#'     twice the negative log-likelihood of the fit, \code{no_pars} and
+#'     \code{no_data} containing the number of parameters and data points for
+#'     the respected fit. This list entry also has two attributes: \code{value}
+#'     containing the final value (residual sum of squares) passed to
+#'     \link{trust::trust} by the objective function and \code{df} the degrees
+#'     of freedom of the fitting process.}
+#'
 #' \item{distinguish}{Names of the columns containing the distinguish effects}
 #' \item{scaling}{Names of the columns containing the scaling effects}
+#' \item{error}{Names of the columns containing the error effects}
 #' }
 #'
 #' The estimated parameters are returned by the attribute "parameters".
@@ -513,7 +527,8 @@ align_me <- function(data,
         original_with_parameters = out_combined$original_with_parameters,
         parameter = parameter_table,
         distinguish = effects_values[[1]],
-        scaling = effects_values[[2]]
+        scaling = effects_values[[2]],
+        error = effects_values[[3]]
     )
 
     if (names_as_factors == TRUE) {

@@ -26,6 +26,7 @@
 #'     package = "blotIt3"
 #' )
 #' read_wide(sim_data_wide_file, description = seq_len(3))
+
 read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
     my_data <- read.csv(file, header = header, ...)
     all_names <- colnames(my_data)
@@ -82,11 +83,7 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 
 
 
-
-
-# plot_align_me -----------------------------------------------------------
-
-
+# plot_align_me() ---------------------------------------------------------
 
 #' All-in-one plot function for blotIt3
 #'
@@ -516,4 +513,64 @@ plot_align_me <- function(out_list,
 
 
     return(g)
+}
+
+
+# llr_test() --------------------------------------------------------------
+
+#' Method for hypothesis testing
+#'
+#' Two outputs of \link{align_me} can be tested as nested hypothesis. This can
+#' be used to test if e.g. buffer material influence can be neglected or a
+#' specific measurement point is an outlier.
+#'
+#' @param H0 output of \link{align_me} obeying the null hypothesis. A special
+#' case of \code{H1}.
+#' @param H1 output of \link{align_me}, the general case
+#'
+#' @return list with the log-likelihood ratio, statistical information and the
+#' numerical p-value calculated by the evaluating the chi-squared distribution
+#' at the present log-likelihood ratio with the current degrees of freedom.
+#' @export
+llr_test <- function(H0, H1, check = TRUE) {
+
+    distinguish0 <- union(
+        H0$distinguish[!(H0$distinguish %in% c("name", "time"))],
+        "1"
+    )
+    distinguish1 <- union(
+        H1$distinguish[!(H1$distinguish %in% c("name", "time"))],
+        "1"
+    )
+
+    scaling0 <- union(H0$scaling[H0$scaling != "name"], "1")
+    scaling1 <- union(H1$scaling[H1$scaling != "name"], "1")
+
+    error0 <- union(H0$error[H0$error != "name"], "1")
+    error1 <- union(H1$scaling[H1$scaling != "name"], "1")
+
+    if (check) {
+        if (
+            !all(distinguish0 %in% distinguish1) |
+            !all(scaling0 %in% scaling1) | !all(error0 %in% error1)
+        ) {
+            stop("H0 is not a special case of H1.")
+        }
+    }
+
+
+    value0 <- attr(H0$parameter, "value")
+    value1 <- attr(H1$parameter, "value")
+    df0 <- attr(H0$parameter, "df")
+    df1 <- attr(H1$parameter, "df")
+
+    list(
+        llr = value0 - value1,
+        statistic = paste0(
+        "chisquare with ", df0 - df1, " degrees of freedom."
+        ),
+        p.value = pchisq(value0 - value1, df = df0 - df1, lower.tail = FALSE)
+    )
+
+
 }
