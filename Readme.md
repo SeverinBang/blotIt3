@@ -76,7 +76,7 @@ scaled_data <- align_me(
   distinguish = yi ~ name + time + condition,
   scaling = sj ~ name + ID,
   error = sigmaR ~ name + 1,
-  input_scale = "linear",
+  parameter_fit_scale = "log",
   normalize = TRUE,
   average_techn_rep = FALSE,
   verbose = FALSE,
@@ -91,10 +91,10 @@ We will go now through the parameters individually:
 In short: we state that the entries "name", "time" and "condition" contain _real_, biological differences.
 - `scaling` Same as above, but here is defined which columns contain identificators of different scaling. Here it is "name" and "ID", meaning that measurements with differ in this effects, (but have the same `distinguish` effects) are scaled upon another.
 - `error` Describes how the error affects the values individually. The present formulation means, that the error parameter is _not_ individually adjusted.
-- `input_scale` Describes the scale of the present data. `align_me()` accepts "linear", "log", "log2" and "log10". Please be aware the that in the current alpha stage, only "linear" was tested.
+- `parameter_fit_scale` Describes the scale on which the parameter are fitted. `align_me()` accepts "linear", "log", "log2" and "log10". The default is "Linear".
 - `average_techn_rep` A logical parameter that indicates, if technical replicates should be averaged before the scaling.
 - `verbose` If set to `TRUE` additional information will be printed in the console.
-- `normalize_input` If set to `TRUE`, the data will be scaled before the actual scaling. This means that the raw input will be scaled to a common order of magnitude before the scaling parameters will be calculated. This is only a computational aid, to eliminate a rare fail of convergence when the different values differ by many orders of magnitude. Setting this to `TRUE` makes only sense (and is only supported) for `input_scale = "linear"`.
+- `normalize_input` If set to `TRUE`, the data will be scaled before the actual scaling. This means that the raw input will be scaled to a common order of magnitude before the scaling parameters will be calculated. This is only a computational aid, to eliminate a rare fail of convergence when the different values differ by many orders of magnitude. Setting this to `TRUE` makes only sense (and is only supported) for `parameter_fit_scale = "linear"`.
 
 The result of `align_me()` is a list with the entries
 - `aligned` A `data.frame` with the columns containing the distinguish effects as well as the columns `value` containing the "estimated true values" and `sigma` containing the uncertainty of the fits. Both are on common 
