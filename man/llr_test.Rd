@@ -24,7 +24,7 @@ specific measurement point is an outlier.
 }
 \examples{
 ## load provided example data file
-lrr_data_path  <- system.file(
+lrr_data_path <- system.file(
     "extdata", "example_llr_test.csv",
     package = "blotIt3"
 )
@@ -32,7 +32,7 @@ lrr_data_path  <- system.file(
 ## import data
 llr_data <- read_wide(
     file = lrr_data_path,
-    description = seq(1,4),
+    description = seq(1, 4),
     sep = ",",
     dec = "."
 )
@@ -46,7 +46,7 @@ H0 <- align_me(
     distinguish = yi ~ name + time + stimmulus,
     scaling = sj ~ name + ID,
     error = sigmaR ~ name + 1,
-    input_scale = "linear",
+    parameter_scale = "linear",
     normalize = TRUE,
     average_techn_rep = FALSE,
     verbose = FALSE,
@@ -62,7 +62,7 @@ H1 <- align_me(
     distinguish = yi ~ name + time + stimmulus + buffer,
     scaling = sj ~ name + ID,
     error = sigmaR ~ name + 1,
-    input_scale = "linear",
+    parameter_scale = "linear",
     normalize = TRUE,
     average_techn_rep = FALSE,
     verbose = FALSE,
@@ -71,5 +71,4 @@ H1 <- align_me(
 
 ## perform test
 llr_test(H0, H1)
-
 }

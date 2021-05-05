@@ -26,7 +26,6 @@
 #'     package = "blotIt3"
 #' )
 #' read_wide(sim_data_wide_file, description = seq_len(3))
-
 read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
     my_data <- read.csv(file, header = header, ...)
     all_names <- colnames(my_data)
@@ -221,7 +220,7 @@ plot_align_me <- function(out_list,
             subset_zeros <- copy(subset(dat, time == 0))
             mydoses <- setdiff(unique(dat$dose), 0)
             my_zeros_add <- NULL
-            for (d in 1:length(mydoses)) {
+            for (d in seq(1, length(mydoses))) {
                 subset_zeros_d <- copy(subset_zeros)
                 subset_zeros_d$dose <- mydoses[d]
                 my_zeros_add <- rbind(my_zeros_add, subset_zeros_d)
@@ -292,7 +291,7 @@ plot_align_me <- function(out_list,
     plot_list_points <- subset(plot_list_points, ...)
     plot_list_line <- subset(plot_list_line, ...)
 
-    legend.name <- paste(scaling, collapse = ", ")
+    legend_name <- paste(scaling, collapse = ", ")
 
     # build Caption
     used_errors <- list(
@@ -534,7 +533,7 @@ plot_align_me <- function(out_list,
 #'
 #' @examples
 #' ## load provided example data file
-#' lrr_data_path  <- system.file(
+#' lrr_data_path <- system.file(
 #'     "extdata", "example_llr_test.csv",
 #'     package = "blotIt3"
 #' )
@@ -542,7 +541,7 @@ plot_align_me <- function(out_list,
 #' ## import data
 #' llr_data <- read_wide(
 #'     file = lrr_data_path,
-#'     description = seq(1,4),
+#'     description = seq(1, 4),
 #'     sep = ",",
 #'     dec = "."
 #' )
@@ -556,7 +555,7 @@ plot_align_me <- function(out_list,
 #'     distinguish = yi ~ name + time + stimmulus,
 #'     scaling = sj ~ name + ID,
 #'     error = sigmaR ~ name + 1,
-#'     input_scale = "linear",
+#'     parameter_fit_scale = "linear",
 #'     normalize = TRUE,
 #'     average_techn_rep = FALSE,
 #'     verbose = FALSE,
@@ -572,7 +571,7 @@ plot_align_me <- function(out_list,
 #'     distinguish = yi ~ name + time + stimmulus + buffer,
 #'     scaling = sj ~ name + ID,
 #'     error = sigmaR ~ name + 1,
-#'     input_scale = "linear",
+#'     parameter_fit_scale = "linear",
 #'     normalize = TRUE,
 #'     average_techn_rep = FALSE,
 #'     verbose = FALSE,
@@ -581,10 +580,8 @@ plot_align_me <- function(out_list,
 #'
 #' ## perform test
 #' llr_test(H0, H1)
-#'
 #' @export
 llr_test <- function(H0, H1, check = TRUE) {
-
     distinguish0 <- union(
         H0$distinguish[!(H0$distinguish %in% c("name", "time"))],
         "1"
@@ -603,7 +600,7 @@ llr_test <- function(H0, H1, check = TRUE) {
     if (check) {
         if (
             !all(distinguish0 %in% distinguish1) |
-            !all(scaling0 %in% scaling1) | !all(error0 %in% error1)
+                !all(scaling0 %in% scaling1) | !all(error0 %in% error1)
         ) {
             stop("H0 is not a special case of H1.")
         }
@@ -618,10 +615,8 @@ llr_test <- function(H0, H1, check = TRUE) {
     list(
         llr = value0 - value1,
         statistic = paste0(
-        "chisquare with ", df0 - df1, " degrees of freedom."
+            "chisquare with ", df0 - df1, " degrees of freedom."
         ),
         p.value = pchisq(value0 - value1, df = df0 - df1, lower.tail = FALSE)
     )
-
-
 }

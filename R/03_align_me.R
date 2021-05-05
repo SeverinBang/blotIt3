@@ -41,8 +41,8 @@
 #' parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 #' "name1, ..." refers to variables in \code{data}. If the same values
 #' of "par1, ..." should be assumed for all data, "name1" can be "1".
-#' @param input_scale character, describes how the input is scaled. Must be one
-#' of \code{c("linear", "log", "log2", "log10")}.
+#' @param parameter_fit_scale string defining on which scale the parameters are
+#' fitted, value must be one of c("linear", "log", "log2", "log10").
 #' @param normalize logical indicating whether the distinguishing effect
 #' parameter should be normalized to unit mean.
 #'
@@ -122,7 +122,7 @@ align_me <- function(data,
                      distinguish = NULL,
                      scaling = NULL,
                      error = NULL,
-                     input_scale = "linear",
+                     parameter_fit_scale = "linear",
                      normalize = TRUE,
                      average_techn_rep = FALSE,
                      verbose = FALSE,
@@ -156,7 +156,7 @@ align_me <- function(data,
         distinguish <- yi ~ name + time + condition
         scaling <- sj ~ name + ID
         error <- sigmaR ~ name + 1
-        input_scale <- "linear"
+        parameter_fit_scale <- "linear"
         normalize <- TRUE
         average_techn_rep <- FALSE
         names_as_factors <- TRUE
@@ -174,14 +174,14 @@ align_me <- function(data,
         distinguish = distinguish,
         scaling = scaling,
         error = error,
-        input_scale = input_scale
+        parameter_fit_scale = parameter_fit_scale
     )
 
     if (verbose) {
         cat(input_check_report, "\n")
     }
 
-    # Check if data is already blotIt output
+    ## Check if data is already blotIt output
     parameter_data <- NULL
 
     if (inherits(data, "aligned")) {
@@ -206,12 +206,12 @@ align_me <- function(data,
         data,
         effects_values,
         normalize_input,
-        input_scale
+        parameter_fit_scale
     )
 
     # Generate unique list of targets
     targets <- make.unique(
-        vapply(to_be_scaled, function(d) as.character(d$name)[1],""),
+        vapply(to_be_scaled, function(d) as.character(d$name)[1], ""),
         sep = "_"
     )
 
@@ -276,8 +276,8 @@ align_me <- function(data,
         error_model
     )
 
-    # Apply transformation according to the given 'input_scale' parameter
-    if (input_scale == "log") {
+    # Apply transformation according to the given 'parameter_fit_scale' parameter
+    if (parameter_fit_scale == "log") {
         model <- replace_symbols(parameters, paste0(
             "exp(", parameters,
             ")"
@@ -293,7 +293,7 @@ align_me <- function(data,
         if (verbose) {
             cat("model, errormodel and constraint are scaled: x <- exp(x)\n")
         }
-    } else if (input_scale == "log2") {
+    } else if (parameter_fit_scale == "log2") {
         model <- replace_symbols(parameters, paste0(
             "2^(", parameters,
             ")"
@@ -309,7 +309,7 @@ align_me <- function(data,
         if (verbose) {
             cat("model, errormodel and constraint are scaled: x <- 2^(x)\n")
         }
-    } else if (input_scale == "log10") {
+    } else if (parameter_fit_scale == "log10") {
         model <- replace_symbols(parameters, paste0(
             "10^(", parameters,
             ")"
@@ -325,7 +325,7 @@ align_me <- function(data,
         if (verbose) {
             cat("model, errormodel and constraint are scaled: x <- 10^(x)\n")
         }
-    } else if (input_scale == "linear") {
+    } else if (parameter_fit_scale == "linear") {
         if (verbose) {
             cat("model, errormodel and constraint remain linear scaled.\n")
         }
@@ -413,7 +413,7 @@ align_me <- function(data,
         verbose = verbose,
         covariates = covariates,
         parameters = parameters,
-        input_scale = input_scale,
+        parameter_fit_scale = parameter_fit_scale,
         effects_pars = effects_pars,
         model_expr = model_expr,
         error_model_expr = error_model_expr,
@@ -428,17 +428,19 @@ align_me <- function(data,
         seq_along(to_be_scaled),
         function(i,
                  pass_parameter_list) {
-            try(
-                {
-                    cat("Target ", i, "/", length(to_be_scaled), ":", targets[i], "\n", sep = "")
-                    out <- scale_target(
-                        current_data = to_be_scaled[[i]],
-                        pass_parameter_list = pass_parameter_list
+            try({
+                cat(
+                    "Target ", i, "/", length(to_be_scaled), ":",
+                    targets[i], "\n", sep = ""
                     )
+                out <- scale_target(
+                    current_data = to_be_scaled[[i]],
+                    pass_parameter_list = pass_parameter_list
+                )
 
-                    return(out)
-                },
-                silent = FALSE
+                return(out)
+            },
+            silent = FALSE
             )
         },
         # additional parameters for scale_target

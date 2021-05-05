@@ -32,5 +32,3 @@ test_that("read_wide works properly", {
         )
     )
 })
-
-

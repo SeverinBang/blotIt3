@@ -48,7 +48,7 @@ test_that("align_me() - model parsing", {
             distinguish = yi ~ condition,
             scaling = wrong ~ ID,
             error = sigmaR ~ name + 1,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         ),
         "Not all paramters are defined in either arguments
          'scaling', 'distinguish' or 'error'"
@@ -62,8 +62,8 @@ test_that("align_me() - model parsing", {
             distinguish = yi ~ condition,
             scaling = sj ~ ID,
             error = sigmaR ~ name + 1,
-            input_scale = "lineara"
+            parameter_fit_scale = "lineara"
         ),
-        "'input_scale' must be 'linear', 'log', 'log2' or 'log10'."
+        "'parameter_fit_scale' must be 'linear', 'log', 'log2' or 'log10'."
     )
 })

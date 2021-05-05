@@ -47,7 +47,7 @@ test_that("split_for_scaling()", {
             split_for_scaling(
                 data = sim_data_long,
                 effects_values,
-                input_scale = "linear",
+                parameter_fit_scale = "linear",
                 normalize_input = TRUE
             )
         ),
@@ -59,7 +59,7 @@ test_that("split_for_scaling()", {
             split_for_scaling(
                 data = sim_data_long,
                 effects_values_1,
-                input_scale = "linear",
+                parameter_fit_scale = "linear",
                 normalize_input = TRUE
             )
         ),
@@ -71,7 +71,7 @@ test_that("split_for_scaling()", {
             split_for_scaling(
                 data = sim_data_long,
                 effects_values_2,
-                input_scale = "linear",
+                parameter_fit_scale = "linear",
                 normalize_input = TRUE
             )
         ),
@@ -82,12 +82,12 @@ test_that("split_for_scaling()", {
         split_for_scaling(
             data = sim_data_long,
             effects_values_2,
-            input_scale = "log2",
+            parameter_fit_scale = "log2",
             normalize_input = TRUE
         ),
         paste0(
             "'normalize_input == TRUE' is only competable with ",
-            "'input_scale == linear'. 'normalize_input' was ignored."
+            "'parameter_fit_scale == linear'. 'normalize_input' was ignored."
         )
     )
 })
@@ -172,7 +172,7 @@ test_that("input_check()", {
             distinguish = yi ~ name + time + condition,
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         ),
         "All input checks passed."
     )
@@ -185,7 +185,7 @@ test_that("input_check()", {
             distinguish = yi ~ name + time + condition + wrong,
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         ),
         paste0(
             "Not all column names set in 'distinguish', 'scaling' and 'error' ",
@@ -201,7 +201,7 @@ test_that("input_check()", {
             # distinguish = "yi ~ name + time + condition",
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         ),
         "All of model, error_model, distinguish, scaling, error must be set."
     )
@@ -214,7 +214,7 @@ test_that("input_check()", {
             # distinguish = "yi ~ name + time + condition",
             scaling = sj ~ name + ID,
             # error = sigmaR ~ name + 1,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         ),
         "All of model, error_model, distinguish, scaling, error must be set."
     )
@@ -227,9 +227,9 @@ test_that("input_check()", {
             distinguish = "yi ~ name + time + condition",
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
-            input_scale = "wrong"
+            parameter_fit_scale = "wrong"
         ),
-        "'input_scale' must be 'linear', 'log', 'log2' or 'log10'."
+        "'parameter_fit_scale' must be 'linear', 'log', 'log2' or 'log10'."
     )
 })
 
@@ -263,7 +263,7 @@ test_that("generate_initial_pars()", {
     expect_equal(
         generate_initial_pars(
             parameters = parameters,
-            input_scale = "linear",
+            parameter_fit_scale = "linear",
             levels_list
         ),
         c(
@@ -283,7 +283,7 @@ test_that("generate_initial_pars()", {
     expect_equal(
         generate_initial_pars(
             parameters = parameters,
-            input_scale = "log",
+            parameter_fit_scale = "log",
             levels_list
         ),
         c(
@@ -303,7 +303,7 @@ test_that("generate_initial_pars()", {
     expect_equal(
         generate_initial_pars(
             parameters = parameters,
-            input_scale = "log2",
+            parameter_fit_scale = "log2",
             levels_list
         ),
         c(
@@ -323,7 +323,7 @@ test_that("generate_initial_pars()", {
     expect_equal(
         generate_initial_pars(
             parameters = parameters,
-            input_scale = "log2",
+            parameter_fit_scale = "log2",
             levels_list = list(
                 distinguish = c(
                     "pAKT_0_0Uml Epo",
@@ -350,7 +350,7 @@ test_that("generate_initial_pars()", {
     expect_equal(
         generate_initial_pars(
             parameters = parameters,
-            input_scale = "linear",
+            parameter_fit_scale = "linear",
             levels_list = list(
                 distinguish = c(
                     "distinguish_a",
@@ -557,7 +557,7 @@ test_that("objective_function()", {
 
     test_pass_parameter_list <- list(
         parameters = test_parameters,
-        input_scale = "linear",
+        parameter_fit_scale = "linear",
         c_strength = test_c_strenth,
         model_expr = test_model_expr,
         error_model_expr = test_error_model,
@@ -645,11 +645,11 @@ test_that("split_for_scaling()", {
             data = sim_data_long,
             effects_values = test_effect_values,
             normalize_input = TRUE,
-            input_scale = "log"
+            parameter_fit_scale = "log"
         ),
         paste0(
             "'normalize_input == TRUE' is only competable with ",
-            "'input_scale == linear'. 'normalize_input' was ignored."
+            "'parameter_fit_scale == linear'. 'normalize_input' was ignored."
         )
     )
 
@@ -659,7 +659,7 @@ test_that("split_for_scaling()", {
             data = sim_data_long,
             effects_values = test_effect_values,
             normalize_input = FALSE,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         )[[1]]$value,
         expected_values
     )
@@ -669,7 +669,7 @@ test_that("split_for_scaling()", {
             data = sim_data_long,
             effects_values = test_effect_values,
             normalize_input = TRUE,
-            input_scale = "linear"
+            parameter_fit_scale = "linear"
         )[[1]]$value,
         expected_values / mean(expected_values)
     )
@@ -679,7 +679,7 @@ test_that("split_for_scaling()", {
             data = sim_data_long,
             effects_values = test_effect_values,
             normalize_input = FALSE,
-            input_scale = "log"
+            parameter_fit_scale = "log"
         )[[1]]$value,
         expected_values
     )
@@ -859,7 +859,7 @@ test_that("resolve_function()", {
 
     test_pass_parameter_list <- list(
         parameters = test_parameters,
-        input_scale = "linear",
+        parameter_fit_scale = "linear",
         c_strength = test_c_strenth,
         model_expr = test_model_expr,
         error_model_expr = test_error_model,

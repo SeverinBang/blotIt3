@@ -243,7 +243,7 @@ analyze_blocks <- function(block_matrix) {
 split_for_scaling <- function(data,
                               effects_values,
                               normalize_input,
-                              input_scale) {
+                              parameter_fit_scale) {
     if (!"1" %in% colnames(data)) {
         data["1"] <- 1
         intercept <- FALSE
@@ -291,7 +291,7 @@ split_for_scaling <- function(data,
 
     # normalize the data
     if (normalize_input) {
-        if (input_scale == "linear") {
+        if (parameter_fit_scale == "linear") {
             for (i in seq_len(length(list_out))) {
                 list_out[[i]]$value <- list_out[[i]]$value /
                     mean(list_out[[i]]$value)
@@ -299,7 +299,7 @@ split_for_scaling <- function(data,
         } else {
             warning(
                 "'normalize_input == TRUE' is only competable with ",
-                "'input_scale == linear'. 'normalize_input' was ignored."
+                "'parameter_fit_scale == linear'. 'normalize_input' was ignored."
             )
         }
     }
@@ -317,11 +317,11 @@ split_for_scaling <- function(data,
 #'
 #' @param data Input data, usually output of \link{read_wide}
 #' @param model Model definition as a string
-#' @param error_model Error model difiniton as a string
+#' @param error_model Error model definition as a string
 #' @param distinguish Definition of the distinguish effects
 #' @param scaling Definition of the scaling effects
 #' @param error Definition of the error effects
-#' @param input_scale String, either of c('linear', 'log', 'log2', 'log10').
+#' @param parameter_fit_scale String, either of c('linear', 'log', 'log2', 'log10').
 #'
 #' @noRd
 
@@ -331,7 +331,7 @@ input_check <- function(data = NULL,
                         distinguish = NULL,
                         scaling = NULL,
                         error = NULL,
-                        input_scale = NULL) {
+                        parameter_fit_scale = NULL) {
 
     # Check if parameters are present
     if (is.null(model) | is.null(error_model) | is.null(distinguish) |
@@ -360,9 +360,10 @@ input_check <- function(data = NULL,
     }
 
     # Check scaling
-    if (!(as.character(input_scale) %in% c("linear", "log", "log2", "log10"))) {
+    if (!(as.character(parameter_fit_scale) %in%
+          c("linear", "log", "log2", "log10"))) {
         stop(
-            "'input_scale' must be 'linear', 'log', 'log2' or 'log10'."
+            "'parameter_fit_scale' must be 'linear', 'log', 'log2' or 'log10'."
         )
     }
 
@@ -428,8 +429,8 @@ input_check <- function(data = NULL,
 #'      Named vector, contains the variables for the three effects, and the
 #'      respective effects as names.
 #'  }
-#'  \item{\code{input_scale}}{
-#'      String, defining the scale of the data see \code{input_scale} in
+#'  \item{\code{parameter_fit_scale}}{
+#'      String, defining the scale of the data see \code{parameter_fit_scale} in
 #'      \link{align_me}.
 #'  }
 #'  \item{\code{effects_pars}}{
@@ -570,7 +571,7 @@ scale_target <- function(current_data,
     verbose <- pass_parameter_list$verbose
     covariates <- pass_parameter_list$covariates
     parameters <- pass_parameter_list$parameters
-    input_scale <- pass_parameter_list$input_scale
+    parameter_fit_scale <- pass_parameter_list$parameter_fit_scale
     effects_pars <- pass_parameter_list$effects_pars
 
     normalize <- pass_parameter_list$normalize
@@ -675,7 +676,7 @@ scale_target <- function(current_data,
     #
     initial_parameters <- generate_initial_pars(
         parameters,
-        input_scale,
+        parameter_fit_scale,
         levels_list
     )
     #
@@ -696,9 +697,7 @@ scale_target <- function(current_data,
         data_fit = data_fit,
         levels_list = levels_list,
         fit_pars_distinguish = fit_pars_distinguish,
-        # parameters = parameters,
         effects_pars = effects_pars,
-        # c_strength = c_strength,
         mask = mask,
         initial_parameters = initial_parameters
     )
@@ -750,7 +749,7 @@ scale_target <- function(current_data,
                   uncertainties might be underestimated.")
     }
 
-# * parameter table -------------------------------------------------------
+    # * parameter table -------------------------------------------------------
     # Generate parameter table
     parameter_table <- data.frame(
         name = current_name,
@@ -773,13 +772,13 @@ scale_target <- function(current_data,
         no_data = nrow(data_fit)
     )
 
-    if (input_scale == "log") {
+    if (parameter_fit_scale == "log") {
         parameter_table$value <- exp(parameter_table$value)
         parameter_table$sigma <- parameter_table$value * parameter_table$sigma
-    } else if (input_scale == "log2") {
+    } else if (parameter_fit_scale == "log2") {
         parameter_table$value <- 2^(parameter_table$value)
         parameter_table$sigma <- parameter_table$value * parameter_table$sigma
-    } else if (input_scale == "log10") {
+    } else if (parameter_fit_scale == "log10") {
         parameter_table$value <- 10^(parameter_table$value)
         parameter_table$sigma <- parameter_table$value * parameter_table$sigma
     }
@@ -800,7 +799,7 @@ scale_target <- function(current_data,
         length(fit_result$argument)
 
 
-# * out_prediction --------------------------------------------------------
+    # * out_prediction --------------------------------------------------------
     # Predicted data
     out_prediction <- current_data
     out_prediction$sigma <- fit_result$sigma * bessel
@@ -813,7 +812,7 @@ scale_target <- function(current_data,
     }
 
 
-# * out_scaled ------------------------------------------------------------
+    # * out_scaled ------------------------------------------------------------
     values_scaled <- try(
         # my_multiroot
         rootSolve::multiroot(
@@ -845,13 +844,13 @@ scale_target <- function(current_data,
             )
         )
         sigmas_scaled <- fit_result$sigma * bessel / my_deriv
-        if (input_scale == "log") {
+        if (parameter_fit_scale == "log") {
             values_scaled <- exp(values_scaled)
             sigmas_scaled <- values_scaled * sigmas_scaled
-        } else if (input_scale == "log2") {
+        } else if (parameter_fit_scale == "log2") {
             values_scaled <- 2^(values_scaled)
             sigmas_scaled <- values_scaled * sigmas_scaled
-        } else if (input_scale == "log10") {
+        } else if (parameter_fit_scale == "log10") {
             values_scaled <- 10^(values_scaled)
             sigmas_scaled <- values_scaled * sigmas_scaled
         }
@@ -861,7 +860,7 @@ scale_target <- function(current_data,
     }
 
 
-# * out_aligned -----------------------------------------------------------
+    # * out_aligned -----------------------------------------------------------
     no_initial <- length(levels_list[[1]])
 
     # Use one datapoint per unique set of fixed parameters
@@ -873,11 +872,11 @@ scale_target <- function(current_data,
     # The values are the fitted parameters for the respective fixed
     # parameter ensembles.
     out_aligned$value <- residuals_fit[[effects_pars[[1]][1]]]
-    if (input_scale == "log") {
+    if (parameter_fit_scale == "log") {
         out_aligned$value <- exp(out_aligned$value)
-    } else if (input_scale == "log2") {
+    } else if (parameter_fit_scale == "log2") {
         out_aligned$value <- 2^(out_aligned$value)
-    } else if (input_scale == "log10") {
+    } else if (parameter_fit_scale == "log10") {
         out_aligned$value <- 10^(out_aligned$value)
     }
 
@@ -885,12 +884,12 @@ scale_target <- function(current_data,
     out_aligned$sigma <- as.numeric(
         sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
     )[seq_len(no_initial)] * bessel
-    if (input_scale != "linear") {
+    if (parameter_fit_scale != "linear") {
         out_aligned$sigma <- out_aligned$value * out_aligned$sigma
     }
 
 
-# * out_orig_w_parameters -------------------------------------------------
+    # * out_orig_w_parameters -------------------------------------------------
     out_orig_w_parameters <- current_data
     for (k in seq_along(parameters)) {
         effect <- names(parameters)[k]
@@ -903,12 +902,12 @@ scale_target <- function(current_data,
         out_orig_w_parameters[[parameters[k]]] <- parameter_table$value[index]
     }
     out <- list(
-        out_prediction,
-        out_scaled,
-        out_aligned,
-        current_data,
-        out_orig_w_parameters,
-        parameter_table
+        out_prediction = out_prediction,
+        out_scaled = out_scaled,
+        out_aligned = out_aligned,
+        original = current_data,
+        out_orig_w_parameters = out_orig_w_parameters,
+        parameter_table = parameter_table
     )
 
 
@@ -925,20 +924,20 @@ scale_target <- function(current_data,
 #'
 #' @param parameters Named vector, contains the variables for the three effects,
 #' and the respective effects as names.
-#' @param input_scale String: 'linear', 'log', 'log2' or 'log10'. Decides what
-#' the initial value will be
+#' @param parameter_fit_scale String: 'linear', 'log', 'log2' or 'log10'. Describing
+#' what the initial value will be
 #' @param levels_list Named list with one entry per effect containing a vector
 #' of strings composed with the respective pasted entries of the effects columns
 #'
 #' @return Named vector with one entry per parameter, all are 1 if
-#' \code{input_scale = 'linear'} and 0 if not. The names are the entries of
+#' \code{parameter_fit_scale = 'linear'} and 0 if not. The names are the entries of
 #' \code{parameters} of the corresponding effect. Each entry is repeated as
 #' often as there are parameters of the respective effect.
 #'
 #' @noRd
 
 generate_initial_pars <- function(parameters,
-                                  input_scale,
+                                  parameter_fit_scale,
                                   levels_list) {
     # Create a named vector with initial values for all parameters. The name
     # is the parameter, and the initial value is 0 for log and 1 for linear.
@@ -953,7 +952,7 @@ generate_initial_pars <- function(parameters,
             seq_along(parameters),
             # Go through all parameters with current parameter n
             function(n) {
-                if (input_scale != "linear") {
+                if (parameter_fit_scale != "linear") {
                     v <- 0
                 } else {
                     v <- 1
@@ -1189,8 +1188,7 @@ rss_model <- function(par_list,
     with(
         # paste list with entries: name, time, value, sigma, the effects and
         # their paramters
-        c(as.list(data_fit), par_list),
-        {
+        c(as.list(data_fit), par_list), {
             # Generate lists var and prediction with <NoOfMeasurements> entries
             # and initialize the it with 1
             prediction <- var <- rep(1, length(value))
@@ -1260,8 +1258,8 @@ rss_model <- function(par_list,
 #'      Named vector, contains the variables for the three effects, and the
 #'      respective effects as names.
 #'  }
-#'  \item{\code{input_scale}}{
-#'      String, defining the scale of the data see \code{input_scale} in
+#'  \item{\code{parameter_fit_scale}}{
+#'      String, defining the scale of the data see \code{parameter_fit_scale} in
 #'      \link{align_me}.
 #'  }
 #'  \item{\code{c_strength}}{
@@ -1305,7 +1303,7 @@ objective_function <- function(current_parameters,
     }
 
     parameters <- pass_parameter_list$parameters
-    input_scale <- pass_parameter_list$input_scale
+    parameter_fit_scale <- pass_parameter_list$parameter_fit_scale
     c_strength <- pass_parameter_list$c_strength
 
     data_fit <- pass_parameter_list2$data_fit
@@ -1356,13 +1354,13 @@ objective_function <- function(current_parameters,
                 ) * c_strength / length(levels_list[[1]])
 
                 # Convert to log if wanted
-                if (input_scale == "log") {
+                if (parameter_fit_scale == "log") {
                     constrain_jacobian <- constrain_jacobian *
                         exp(current_parameters[k])
-                } else if (input_scale == "log2") {
+                } else if (parameter_fit_scale == "log2") {
                     constrain_jacobian <- constrain_jacobian *
                         2^(current_parameters[k])
-                } else if (input_scale == "log10") {
+                } else if (parameter_fit_scale == "log10") {
                     constrain_jacobian <- constrain_jacobian *
                         10^(current_parameters[k])
                 }
