@@ -11,12 +11,14 @@ align_me(
   distinguish = NULL,
   scaling = NULL,
   error = NULL,
-  parameter_scale = "linear",
+  parameter_fit_scale = "log",
   normalize = TRUE,
   average_techn_rep = FALSE,
   verbose = FALSE,
   names_as_factors = TRUE,
-  normalize_input = TRUE
+  normalize_input = TRUE,
+  output_scale = "linear",
+  iterlim = 100
 )
 }
 \arguments{
@@ -54,7 +56,7 @@ parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 "name1, ..." refers to variables in \code{data}. If the same values
 of "par1, ..." should be assumed for all data, "name1" can be "1".}
 
-\item{parameter_scale}{string defining on which scale the parameters are
+\item{parameter_fit_scale}{string defining on which scale the parameters are
 fitted, value must be one of c("linear", "log", "log2", "log10").}
 
 \item{normalize}{logical indicating whether the distinguishing effect
@@ -70,6 +72,8 @@ output should be parsed as factors instead of characters.}
 
 \item{normalize_input}{logical, if TRUE the input will be normalized before
 scaling. see \code{split_data}.}
+
+\item{iterlim}{numerical argument passed to \link{trust}.}
 }
 \value{
 Object of class \code{aligned}, i.e. a data frame of the

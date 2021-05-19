@@ -16,7 +16,8 @@ plot_align_me(
   ncol = NULL,
   my_colors = NULL,
   duplicate_zero_points = FALSE,
-  my_order = NULL
+  my_order = NULL,
+  plot_scale = NULL
 )
 }
 \arguments{

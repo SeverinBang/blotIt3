@@ -331,7 +331,8 @@ input_check <- function(data = NULL,
                         distinguish = NULL,
                         scaling = NULL,
                         error = NULL,
-                        parameter_fit_scale = NULL) {
+                        parameter_fit_scale = NULL,
+                        output_scale = NULL) {
 
     # Check if parameters are present
     if (is.null(model) | is.null(error_model) | is.null(distinguish) |
@@ -361,9 +362,12 @@ input_check <- function(data = NULL,
 
     # Check scaling
     if (!(as.character(parameter_fit_scale) %in%
+          c("linear", "log", "log2", "log10")) |
+        !(as.character(output_scale) %in%
           c("linear", "log", "log2", "log10"))) {
         stop(
-            "'parameter_fit_scale' must be 'linear', 'log', 'log2' or 'log10'."
+            "'parameter_fit_scale' and 'output_scale' must be 'linear', ",
+            "'log' 'log2' or 'log10'."
         )
     }
 
@@ -573,8 +577,9 @@ scale_target <- function(current_data,
     parameters <- pass_parameter_list$parameters
     parameter_fit_scale <- pass_parameter_list$parameter_fit_scale
     effects_pars <- pass_parameter_list$effects_pars
-
     normalize <- pass_parameter_list$normalize
+    output_scale <-  pass_parameter_list$output_scale
+    iterlim <- pass_parameter_list$iterlim
 
 
     current_name <- unique(current_data$name)
@@ -710,6 +715,7 @@ scale_target <- function(current_data,
         parinit = initial_parameters,
         rinit = 1,
         rmax = 10,
+        iterlim = iterlim,
         blather = verbose,
         pass_parameter_list = pass_parameter_list,
         pass_parameter_list2 = pass_parameter_list2
@@ -772,16 +778,40 @@ scale_target <- function(current_data,
         no_data = nrow(data_fit)
     )
 
-    if (parameter_fit_scale == "log") {
-        parameter_table$value <- exp(parameter_table$value)
-        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
-    } else if (parameter_fit_scale == "log2") {
-        parameter_table$value <- 2^(parameter_table$value)
-        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
-    } else if (parameter_fit_scale == "log10") {
-        parameter_table$value <- 10^(parameter_table$value)
-        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
-    }
+    parameter_table$upper <- parameter_table$value + parameter_table$sigma
+    parameter_table$lower <- parameter_table$value - parameter_table$sigma
+
+    scaling_list_parameter_table <- scale_values(
+        parameter_fit_scale = parameter_fit_scale,
+        output_scale = output_scale,
+        value = parameter_table$value,
+        upper = parameter_table$upper,
+        lower = parameter_table$lower,
+        sigma = parameter_table$sigma
+
+    )
+
+    parameter_table$value <- scaling_list_parameter_table$value
+    parameter_table$upper <- scaling_list_parameter_table$upper
+    parameter_table$lower <- scaling_list_parameter_table$lower
+    parameter_table$sigma <- scaling_list_parameter_table$sigma
+#
+#     if (parameter_fit_scale == "log") {
+#         parameter_table$value <- exp(parameter_table$value)
+#         parameter_table$upper <- exp(parameter_table$upper)
+#         parameter_table$lower <- exp(parameter_table$lower)
+#         parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+#     } else if (parameter_fit_scale == "log2") {
+#         parameter_table$value <- 2^(parameter_table$value)
+#         parameter_table$upper <- 2^(parameter_table$upper)
+#         parameter_table$lower <- 2^(parameter_table$lower)
+#         parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+#     } else if (parameter_fit_scale == "log10") {
+#         parameter_table$value <- 10^(parameter_table$value)
+#         parameter_table$upper <- 10^(parameter_table$upper)
+#         parameter_table$lower <- 10^(parameter_table$lower)
+#         parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+#     }
 
     if (verbose) {
         cat("Estimated parameters on non-log scale:\n")
@@ -805,14 +835,15 @@ scale_target <- function(current_data,
     out_prediction$sigma <- fit_result$sigma * bessel
     out_prediction$value <- fit_result$prediction
 
-    # Initialize list for scaled values
+
+    # * out_scaled ------------------------------------------------------------
+        # Initialize list for scaled values
     initial_values_scaled <- rep(0, nrow(current_data))
     if (verbose) {
         cat("Inverting model ... ")
     }
 
 
-    # * out_scaled ------------------------------------------------------------
     values_scaled <- try(
         # my_multiroot
         rootSolve::multiroot(
@@ -844,19 +875,52 @@ scale_target <- function(current_data,
             )
         )
         sigmas_scaled <- fit_result$sigma * bessel / my_deriv
-        if (parameter_fit_scale == "log") {
-            values_scaled <- exp(values_scaled)
-            sigmas_scaled <- values_scaled * sigmas_scaled
-        } else if (parameter_fit_scale == "log2") {
-            values_scaled <- 2^(values_scaled)
-            sigmas_scaled <- values_scaled * sigmas_scaled
-        } else if (parameter_fit_scale == "log10") {
-            values_scaled <- 10^(values_scaled)
-            sigmas_scaled <- values_scaled * sigmas_scaled
-        }
+
+        upper_scaled <- values_scaled + sigmas_scaled
+        lower_scaled <- values_scaled - sigmas_scaled
+
+        scaling_list_scaled <- scale_values(
+            parameter_fit_scale = parameter_fit_scale,
+            output_scale = output_scale,
+            value = values_scaled,
+            upper = upper_scaled,
+            lower = lower_scaled,
+            sigma = sigmas_scaled
+        )
+
         out_scaled <- current_data
-        out_scaled$value <- values_scaled
-        out_scaled$sigma <- sigmas_scaled
+        out_scaled$value <- scaling_list_scaled$value
+        out_scaled$sigma <- scaling_list_scaled$sigma
+        out_scaled$upper <- scaling_list_scaled$upper
+        out_scaled$lower <- scaling_list_scaled$lower
+
+        # values_scaled <- scaling_list_scaled$value
+        #
+        # if (parameter_fit_scale == "log") {
+        #     values_scaled <- exp(values_scaled)
+        #     upper_scaled <- exp(upper_scaled)
+        #     lower_scaled <- exp(lower_scaled)
+        #     sigmas_scaled <- values_scaled * sigmas_scaled
+        #     upper_scaled <- values_scaled * upper_scaled
+        #     lower_scaled <- values_scaled * lower_scaled
+        # } else if (parameter_fit_scale == "log2") {
+        #     values_scaled <- 2^(values_scaled)
+        #     sigmas_scaled <- values_scaled * sigmas_scaled
+        #     upper_scaled <- values_scaled * upper_scaled
+        #     lower_scaled <- values_scaled * lower_scaled
+        # } else if (parameter_fit_scale == "log10") {
+        #     values_scaled <- 10^(values_scaled)
+        #     sigmas_scaled <- values_scaled * sigmas_scaled
+        #     upper_scaled <- values_scaled * upper_scaled
+        #     lower_scaled <- values_scaled * lower_scaled
+        # }
+#
+#         out_scaled <- current_data
+#         out_scaled$value <- values_scaled
+#         out_scaled$sigma <- sigmas_scaled
+#         out_scaled$upper <- upper_scaled
+#         out_scaled$lower <- lower_scaled
+
     }
 
 
@@ -872,21 +936,57 @@ scale_target <- function(current_data,
     # The values are the fitted parameters for the respective fixed
     # parameter ensembles.
     out_aligned$value <- residuals_fit[[effects_pars[[1]][1]]]
-    if (parameter_fit_scale == "log") {
-        out_aligned$value <- exp(out_aligned$value)
-    } else if (parameter_fit_scale == "log2") {
-        out_aligned$value <- 2^(out_aligned$value)
-    } else if (parameter_fit_scale == "log10") {
-        out_aligned$value <- 10^(out_aligned$value)
-    }
 
     # The sigmas are calculated by evaluating the fisher information matrix
     out_aligned$sigma <- as.numeric(
         sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
     )[seq_len(no_initial)] * bessel
-    if (parameter_fit_scale != "linear") {
-        out_aligned$sigma <- out_aligned$value * out_aligned$sigma
-    }
+
+    out_aligned$upper <- out_aligned$value + out_aligned$sigma
+    out_aligned$lower <- out_aligned$value - out_aligned$sigma
+
+    scaling_list_aligned <- scale_values(
+        parameter_fit_scale = parameter_fit_scale,
+        output_scale = output_scale,
+        value = out_aligned$value,
+        upper = out_aligned$upper,
+        lower = out_aligned$lower,
+        sigma = out_aligned$sigma
+    )
+
+    out_aligned$value <- scaling_list_aligned$value
+    out_aligned$upper <- scaling_list_aligned$upper
+    out_aligned$lower <- scaling_list_aligned$lower
+    out_aligned$sigma <- scaling_list_aligned$sigma
+    #
+    #
+    #
+    #
+    # if (parameter_fit_scale == "log") {
+    #     out_aligned$value <- exp(out_aligned$value)
+    #     out_aligned$upper <- exp(out_aligned$upper)
+    #     out_aligned$lower <- exp(out_aligned$lower)
+    #     out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    # } else if (parameter_fit_scale == "log2") {
+    #     out_aligned$value <- 2^(out_aligned$value)
+    #     out_aligned$upper <- 2^(out_aligned$upper)
+    #     out_aligned$lower <- 2^(out_aligned$lower)
+    #     out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    # } else if (parameter_fit_scale == "log10") {
+    #     out_aligned$value <- 10^(out_aligned$value)
+    #     out_aligned$upper <- 10^(out_aligned$upper)
+    #     out_aligned$lower <- 10^(out_aligned$lower)
+    #     out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    # }
+#
+#
+#     if (parameter_fit_scale != "linear") {
+#         out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+#         out_aligned$upper <- out_aligned$value * out_aligned$upper
+#         out_aligned$lower <- out_aligned$value * out_aligned$lower
+#     }
+
+
 
 
     # * out_orig_w_parameters -------------------------------------------------
@@ -1583,3 +1683,54 @@ ymaximal <- function(x) {
 
     return(out)
 }
+
+
+# scale_values() ----------------------------------------------------------
+
+#' scale the values according to the current parameter scale
+#'
+#' @param parameter_fit_scale the current scale
+#' @param value value to be scaled
+#' @param upper upper error bound, i.e. value + sigma
+#' @param lower lower error bound, i.e. value - sigma
+#' @param sigma sigma to be scaled
+#'
+#' @noRd
+scale_values <- function(parameter_fit_scale,
+                         output_scale,
+                         value,
+                         upper,
+                         lower,
+                         sigma) {
+    if (parameter_fit_scale == "log") {
+        value <- exp(value)
+        upper <- exp(upper)
+        lower <- exp(lower)
+        sigma <- value * sigma
+    } else if (parameter_fit_scale == "log2") {
+        value <- 2^(value)
+        upper <- 2^(upper)
+        lower <- 2^(lower)
+        sigma <- value * sigma
+    } else if (parameter_fit_scale == "log10") {
+        value <- 10^(value)
+        upper <- 10^(upper)
+        lower <- 10^(lower)
+        sigma <- value * sigma
+    } else if (parameter_fit_scale == "linear") {
+        value <- value
+        upper <- upper
+        lower <- lower
+        sigma <- sigma
+    }
+
+    upper <- value + sigma
+    lover <- value - sigma
+
+
+
+
+
+    return(list(value = value, upper = upper, lower = lower, sigma = sigma))
+}
+

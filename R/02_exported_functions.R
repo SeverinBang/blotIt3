@@ -152,7 +152,9 @@ plot_align_me <- function(out_list,
                           ncol = NULL,
                           my_colors = NULL,
                           duplicate_zero_points = FALSE,
-                          my_order = NULL) {
+                          my_order = NULL,
+                          plot_scale = NULL
+                          ) {
     if (FALSE) {
         out_list <- blotIt_test3
         plot_points <- "aligned"
@@ -165,6 +167,7 @@ plot_align_me <- function(out_list,
         my_colors <- NULL
         duplicate_zero_points <- FALSE
         my_order <- NULL
+        plot_scale = NULL
     }
     if (!plot_points %in% c("original", "scaled", "prediction", "aligned") |
         !plot_line %in% c("original", "scaled", "prediction", "aligned")) {
@@ -406,8 +409,8 @@ plot_align_me <- function(out_list,
     g <- g + geom_errorbar(
         data = plot_list_points,
         aes(
-            ymin = value - sigma,
-            ymax = value + sigma
+            ymin = lower, # value - sigma,
+            ymax = upper # value + sigma
         ),
         size = 1,
         width = 4
@@ -419,8 +422,8 @@ plot_align_me <- function(out_list,
         g <- g + geom_errorbar(
             data = plot_list_line,
             aes(
-                ymin = value - sigma,
-                ymax = value + sigma
+                ymin = lower, # value - sigma,
+                ymax = upper # value + sigma
             ),
             width = 0
         )
@@ -437,8 +440,8 @@ plot_align_me <- function(out_list,
                 g <- g + geom_ribbon(
                     data = plot_list_line,
                     aes(
-                        ymin = value - sigma,
-                        ymax = value + sigma
+                        ymin = lower, # value - sigma,
+                        ymax = upper # value + sigma
                     ),
                     alpha = 0.1,
                     lty = 0
@@ -449,8 +452,8 @@ plot_align_me <- function(out_list,
             g <- g + geom_ribbon(
                 data = plot_list_line,
                 aes(
-                    ymin = value - sigma,
-                    ymax = value + sigma,
+                    ymin = lower, # value - sigma,
+                    ymax = upper, # value + sigma,
                     fill = "grey",
                     color = "grey"
                 ),
@@ -483,7 +486,7 @@ plot_align_me <- function(out_list,
             plot_list_points <- as.data.table(plot_list_points)
             blank_data <- plot_list_points[
                 ,
-                list(ymax = max(value + sigma), ymin = min(value - sigma)),
+                list(ymax = max(upper), ymin = min(lower)), # list(ymax = max(value + sigma), ymin = min(value - sigma)),
                 by = c("name", "distinguish", "scaling")
             ]
             blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
@@ -508,6 +511,14 @@ plot_align_me <- function(out_list,
 
     if (plot_caption) {
         g <- g + labs(caption = caption_text)
+    }
+
+    if (is.null(plot_scale)) {
+        if (out_list$output_scale != "linear") {
+            g <- g + coord_trans(y = out_list$output_scale)
+        }
+    } else if (plot_scale %in% c("log", "log2", "log10")) {
+        g <- g + coord_trans(y = plot_scale)
     }
 
 

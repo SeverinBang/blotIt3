@@ -55,6 +55,8 @@
 #' @param verbose logical, print out information about each fit
 #' @param normalize_input logical, if TRUE the input will be normalized before
 #' scaling. see \code{split_data}.
+#' @param iterlim numerical argument passed to \link{trust}.
+#'
 #' @details Alignment of time-course data is achieved by an alignment
 #' model which explains the observed data by a function mixing
 #' fixed effects, usually parameters reflecting the "underlying"
@@ -122,19 +124,23 @@ align_me <- function(data,
                      distinguish = NULL,
                      scaling = NULL,
                      error = NULL,
-                     parameter_fit_scale = "linear",
+                     parameter_fit_scale = "log",
                      normalize = TRUE,
                      average_techn_rep = FALSE,
                      verbose = FALSE,
                      names_as_factors = TRUE,
-                     normalize_input = TRUE) {
+                     normalize_input = TRUE,
+                     output_scale = "linear",
+                     iterlim = 100
+                     ) {
     if (FALSE) {
-        if (FALSE) {
+        if (TRUE) {
             sim_data_wide_file <- system.file(
                 "extdata", "sim_data_wide.csv",
                 package = "blotIt3"
             )
             data <- read_wide(sim_data_wide_file, description = seq_len(3))
+            data <- subset(data, name == "pAKT")
         } else {
             data <- read_wide(
                 file = paste0(
@@ -156,12 +162,14 @@ align_me <- function(data,
         distinguish <- yi ~ name + time + condition
         scaling <- sj ~ name + ID
         error <- sigmaR ~ name + 1
-        parameter_fit_scale <- "linear"
+        parameter_fit_scale <- "log"
         normalize <- TRUE
         average_techn_rep <- FALSE
         names_as_factors <- TRUE
         verbose <- TRUE
-        normalize_input <- TRUE
+        normalize_input <- FALSE
+        output_scale <- "linear"
+        iterlim <- 100
     }
 
 
@@ -174,7 +182,8 @@ align_me <- function(data,
         distinguish = distinguish,
         scaling = scaling,
         error = error,
-        parameter_fit_scale = parameter_fit_scale
+        parameter_fit_scale = parameter_fit_scale,
+        output_scale = output_scale
     )
 
     if (verbose) {
@@ -406,6 +415,9 @@ align_me <- function(data,
         function(myjac) parse(text = myjac)
     )
 
+
+    # output_scale <- output_scale
+    # cat("\n\n\n", output_scale,"\n\n\n")
     pass_parameter_list <- list(
         effects_values = effects_values,
         parameter_data = parameter_data,
@@ -422,7 +434,9 @@ align_me <- function(data,
         error_model_jacobian_expr = error_model_jacobian_expr,
         c_strength = c_strength,
         normalize = normalize,
-        model_derivertive_expr = model_derivertive_expr
+        model_derivertive_expr = model_derivertive_expr,
+        output_scale = output_scale,
+        iterlim = iterlim
     )
     out <- lapply(
         seq_along(to_be_scaled),
@@ -530,7 +544,8 @@ align_me <- function(data,
         parameter = parameter_table,
         distinguish = effects_values[[1]],
         scaling = effects_values[[2]],
-        error = effects_values[[3]]
+        error = effects_values[[3]],
+        output_scale = output_scale
     )
 
     if (names_as_factors == TRUE) {
