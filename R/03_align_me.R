@@ -285,7 +285,7 @@ align_me <- function(data,
         error_model
     )
 
-    # Apply transformation according to the given 'parameter_fit_scale' parameter
+    # Apply transformation according to given 'parameter_fit_scale' parameter
     if (parameter_fit_scale == "log") {
         model <- replace_symbols(parameters, paste0(
             "exp(", parameters,

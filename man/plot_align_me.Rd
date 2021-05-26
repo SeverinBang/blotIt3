@@ -17,7 +17,10 @@ plot_align_me(
   my_colors = NULL,
   duplicate_zero_points = FALSE,
   my_order = NULL,
-  plot_scale = NULL
+  plot_scale = NULL,
+  dose_response = FALSE,
+  xlab = NULL,
+  ylab = NULL
 )
 }
 \arguments{
@@ -71,6 +74,15 @@ conditions consist of treatments added at time zero. Default is \code{FALSE}.}
 
 \item{my_order}{Optional list of target names in the custom order that will
 be used for faceting.}
+
+\item{dose_response}{Logical, indicates if the plot should be dose response}
+
+\item{xlab}{Optional, value passed to \code{xlab} parameter of \link{ggplot}
+for the x-axis. Default is \code{NULL} leading to 'Time' or 'Dose',
+respectively.}
+
+\item{ylab}{Optional, value passed to \code{ylab} parameter of \link{ggplot}
+for the y-axis. Default is \code{NULL} leading to 'Signal'.}
 }
 \value{
 ggplot object

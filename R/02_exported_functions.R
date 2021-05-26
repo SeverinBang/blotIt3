@@ -117,6 +117,15 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 #' @param my_order Optional list of target names in the custom order that will
 #' be used for faceting.
 #'
+#' @param dose_response Logical, indicates if the plot should be dose response
+#'
+#' @param xlab Optional, value passed to \code{xlab} parameter of \link{ggplot}
+#' for the x-axis. Default is \code{NULL} leading to 'Time' or 'Dose',
+#' respectively.
+#'
+#' @param ylab Optional, value passed to \code{ylab} parameter of \link{ggplot}
+#' for the y-axis. Default is \code{NULL} leading to 'Signal'.
+#'
 #' @param ... Logical expression used for subsetting the data frames, e.g.
 #' \code{name == "pERK1" & time < 60}.
 #'
@@ -153,10 +162,13 @@ plot_align_me <- function(out_list,
                           my_colors = NULL,
                           duplicate_zero_points = FALSE,
                           my_order = NULL,
-                          plot_scale = NULL
+                          plot_scale = NULL,
+                          dose_response = FALSE,
+                          xlab = NULL,
+                          ylab = NULL
                           ) {
     if (FALSE) {
-        out_list <- blotIt_test3
+        out_list <- out_dose
         plot_points <- "aligned"
         plot_line <- "aligned"
         spline <- FALSE
@@ -168,6 +180,8 @@ plot_align_me <- function(out_list,
         duplicate_zero_points <- FALSE
         my_order <- NULL
         plot_scale = NULL
+        dose_response <- TRUE
+        x_title <- "bingo"
     }
     if (!plot_points %in% c("original", "scaled", "prediction", "aligned") |
         !plot_line %in% c("original", "scaled", "prediction", "aligned")) {
@@ -236,11 +250,19 @@ plot_align_me <- function(out_list,
     # add columns containing the respective scaling and distinguish effects
 
     # aligned
+
+    if (dose_response == TRUE) {
+        x_value <- "dose"
+    } else {
+        x_value <- "time"
+    }
+
+
     plot_list$aligned$distinguish <- do.call(
         paste0,
         plot_list$aligned[
             ,
-            distinguish[!(distinguish %in% c("name", "time"))],
+            distinguish[!(distinguish %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -251,7 +273,7 @@ plot_align_me <- function(out_list,
         paste0,
         out_list$scaled[
             ,
-            distinguish[!(distinguish %in% c("name", "time"))],
+            distinguish[!(distinguish %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -265,7 +287,7 @@ plot_align_me <- function(out_list,
         paste0,
         out_list$prediction[
             ,
-            distinguish[!(distinguish %in% c("name", "time"))],
+            distinguish[!(distinguish %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -279,7 +301,7 @@ plot_align_me <- function(out_list,
         paste0,
         out_list$original[
             ,
-            distinguish[!(distinguish %in% c("name", "time"))],
+            distinguish[!(distinguish %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -294,7 +316,7 @@ plot_align_me <- function(out_list,
     plot_list_points <- subset(plot_list_points, ...)
     plot_list_line <- subset(plot_list_line, ...)
 
-    legend_name <- paste(scaling, collapse = ", ")
+    # legend_name <- paste(scaling, collapse = ", ")
 
     # build Caption
     used_errors <- list(
@@ -329,185 +351,36 @@ plot_align_me <- function(out_list,
 
 
 
-    ## plot
-    if (plot_points == "aligned" & plot_line == "aligned") {
-        g <- ggplot(
-            data = plot_list_points,
-            aes(
-                x = time,
-                y = value,
-                group = distinguish,
-                color = distinguish,
-                fill = distinguish
-            )
-        )
-        g <- g + facet_wrap(~name, scales = scales, ncol = ncol)
-        if (is.null(my_colors)) {
-            # my_colors <- scale_color_brewer()
-            # # c(
-            # # "#000000",
-            # # "#C5000B",
-            # # "#0084D1",
-            # # "#579D1C",
-            # # "#FF950E",
-            # # "#4B1F6F",
-            # # "#CC79A7",
-            # # "#006400",
-            # # "#F0E442",
-            # # "#8B4513",
-            # # rep("gray", 100)
-            # # )
-            # g <- g + scale_color_manual("Condition", values = my_colors) +
-            #     scale_fill_manual("Condition", values = my_colors)
-        } else {
-            my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Condition", values = my_colors) +
-                scale_fill_manual("Condition", values = my_colors)
-        }
-    } else {
-        g <- ggplot(
-            data = plot_list_points,
-            aes(
-                x = time,
-                y = value,
-                group = scaling,
-                color = scaling,
-                fill = scaling
-            )
-        )
-        g <- g + facet_wrap(
-            ~ name * distinguish,
+    if (dose_response == FALSE ) {
+        g <- plot_time_course(
+            plot_list_points = plot_list_points,
+            plot_list_line = plot_list_line,
+            plot_points = plot_points,
+            plot_line = plot_line,
+            spline = spline,
             scales = scales,
-            ncol = ncol
-        )
-        if (is.null(my_colors)) {
-            # my_colors <- scale_color_brewer()
-            # # c(
-            # # "#000000",
-            # # "#C5000B",
-            # # "#0084D1",
-            # # "#579D1C",
-            # # "#FF950E",
-            # # "#4B1F6F",
-            # # "#CC79A7",
-            # # "#006400",
-            # # "#F0E442",
-            # # "#8B4513",
-            # # rep("gray", 100)
-            # # )
-            # g <- g + scale_color_manual("Scaling", values = my_colors) +
-            #     scale_fill_manual("Scaling", values = my_colors)
-        } else {
-            my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Scaling", values = my_colors) +
-                scale_fill_manual("Scaling", values = my_colors)
-        }
-    }
-
-
-    g <- g + geom_point(data = plot_list_points, size = 2)
-    g <- g + geom_errorbar(
-        data = plot_list_points,
-        aes(
-            ymin = lower, # value - sigma,
-            ymax = upper # value + sigma
-        ),
-        size = 1,
-        width = 4
-    )
-
-
-
-    if (spline) {
-        g <- g + geom_errorbar(
-            data = plot_list_line,
-            aes(
-                ymin = lower, # value - sigma,
-                ymax = upper # value + sigma
-            ),
-            width = 0
-        )
-        g <- g + geom_smooth(
-            data = plot_list_line,
-            se = FALSE,
-            method = "lm",
-            formula = y ~ poly(x, 3)
+            align_zeros = align_zeros,
+            ncol = ncol,
+            my_colors = my_colors,
+            xlab = xlab,
+            ylab = ylab
         )
     } else {
-        if (plot_points == plot_line | plot_line == "prediction") {
-            g <- g + geom_line(data = plot_list_line, size = 1)
-            if (plot_line == "prediction") {
-                g <- g + geom_ribbon(
-                    data = plot_list_line,
-                    aes(
-                        ymin = lower, # value - sigma,
-                        ymax = upper # value + sigma
-                    ),
-                    alpha = 0.1,
-                    lty = 0
-                )
-            }
-        } else {
-            g <- g + geom_line(data = plot_list_line, size = 1, color = "grey")
-            g <- g + geom_ribbon(
-                data = plot_list_line,
-                aes(
-                    ymin = lower, # value - sigma,
-                    ymax = upper, # value + sigma,
-                    fill = "grey",
-                    color = "grey"
-                ),
-                alpha = 0.3,
-                lty = 0
-            )
-        }
-    }
-
-    g <- g + theme_bw(base_size = 20) +
-        theme(
-            legend.position = "top",
-            legend.key = element_blank(),
-            strip.background = element_rect(color = NA, fill = NA),
-            axis.line.x = element_line(size = 0.3, colour = "black"),
-            axis.line.y = element_line(size = 0.3, colour = "black"),
-            panel.grid.major.x = element_blank(),
-            panel.grid.major.y = element_blank(),
-            panel.grid.minor = element_blank(),
-            panel.border = element_blank(),
-            panel.background = element_blank(),
-            plot.margin = unit(c(0, 0.5, 0.5, 0.5), "cm")
+        g <- plot_dose_response(
+            plot_list_points = plot_list_points,
+            plot_list_line = plot_list_line,
+            plot_points = plot_points,
+            plot_line = plot_line,
+            spline = spline,
+            scales = scales,
+            align_zeros = align_zeros,
+            ncol = ncol,
+            my_colors = my_colors,
+            xlab = xlab,
+            ylab = ylab
         )
-    g <- g + xlab("\nTime") + ylab("Signal\n")
-
-    if (align_zeros) {
-        if (plot_points != "original") {
-            # scale y-axes (let them start at same minimum determined by
-            # smallest value-sigma and end at individual ymax)
-            plot_list_points <- as.data.table(plot_list_points)
-            blank_data <- plot_list_points[
-                ,
-                list(ymax = max(upper), ymin = min(lower)), # list(ymax = max(value + sigma), ymin = min(value - sigma)),
-                by = c("name", "distinguish", "scaling")
-            ]
-            blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
-            blank_data[
-                ,
-                ":="(ymax = ymaximal(ymax)),
-                by = c("name", "distinguish", "scaling")
-            ] # protein specific maximum
-            blank_data <- melt(
-                blank_data,
-                id.vars = c("name", "distinguish", "scaling"),
-                measure.vars = c("ymax", "ymin"),
-                value.name = "value"
-            )
-            blank_data[, ":="(time = 0, variable = NULL)]
-            g <- g + geom_blank(
-                data = as.data.frame(blank_data),
-                aes(x = time, y = value)
-            )
-        }
     }
+
 
     if (plot_caption) {
         g <- g + labs(caption = caption_text)
