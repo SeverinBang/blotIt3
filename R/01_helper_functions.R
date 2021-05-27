@@ -1802,8 +1802,8 @@ plot_time_course <- function(
             #     scale_fill_manual("Condition", values = my_colors)
         } else {
             my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Condition", values = my_colors) +
-                scale_fill_manual("Condition", values = my_colors)
+            g <- g + scale_color_manual("Distinguished", values = my_colors) +
+                scale_fill_manual("Distinguished", values = my_colors)
         }
     } else {
         g <- ggplot(
@@ -1840,23 +1840,10 @@ plot_time_course <- function(
             #     scale_fill_manual("Scaling", values = my_colors)
         } else {
             my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Scaling", values = my_colors) +
-                scale_fill_manual("Scaling", values = my_colors)
+            g <- g + scale_color_manual("Scaled", values = my_colors) +
+                scale_fill_manual("Scaled", values = my_colors)
         }
     }
-
-
-    g <- g + geom_point(data = plot_list_points, size = 2)
-    g <- g + geom_errorbar(
-        data = plot_list_points,
-        aes(
-            ymin = lower, # value - sigma,
-            ymax = upper # value + sigma
-        ),
-        size = 1,
-        width = 4
-    )
-
 
 
     if (spline) {
@@ -1881,8 +1868,9 @@ plot_time_course <- function(
                 g <- g + geom_ribbon(
                     data = plot_list_line,
                     aes(
-                        ymin = lower, # value - sigma,
-                        ymax = upper # value + sigma
+                        # probably this should be changed back
+                        ymin = value - sigma, # lower
+                        ymax = value + sigma # upper
                     ),
                     alpha = 0.1,
                     lty = 0
@@ -1903,6 +1891,33 @@ plot_time_course <- function(
             )
         }
     }
+
+    g <- g + geom_point(data = plot_list_points, size = 2.5)
+
+    if(plot_line != "prediction"){
+        g <- g + geom_errorbar(
+            data = plot_list_points,
+            aes(
+                ymin = lower, # value - sigma,
+                ymax = upper # value + sigma
+            ),
+            size = 0.5,
+            width = 0.5,
+            alpha = 0.5
+        )
+    } else {
+        g <- g + geom_errorbar(
+            data = plot_list_points,
+            aes(
+                ymin = value - sigma, # ,
+                ymax = value + sigma #
+            ),
+            size = 0.5,
+            width = 0.5,
+            alpha = 0.5
+        )
+    }
+
 
     g <- g + theme_bw(base_size = 20) +
         theme(
@@ -2029,8 +2044,8 @@ plot_dose_response <- function(
             #     scale_fill_manual("Condition", values = my_colors)
         } else {
             my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Condition", values = my_colors) +
-                scale_fill_manual("Condition", values = my_colors)
+            g <- g + scale_color_manual("Distinguished", values = my_colors) +
+                scale_fill_manual("Distinguished", values = my_colors)
         }
     } else {
         g <- ggplot(
@@ -2067,23 +2082,10 @@ plot_dose_response <- function(
             #     scale_fill_manual("Scaling", values = my_colors)
         } else {
             my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Scaling", values = my_colors) +
-                scale_fill_manual("Scaling", values = my_colors)
+            g <- g + scale_color_manual("Scaled", values = my_colors) +
+                scale_fill_manual("Scaled", values = my_colors)
         }
     }
-
-
-    g <- g + geom_point(data = plot_list_points, size = 2)
-    g <- g + geom_errorbar(
-        data = plot_list_points,
-        aes(
-            ymin = lower, # value - sigma,
-            ymax = upper # value + sigma
-        ),
-        size = 1,
-        width = 4
-    )
-
 
 
     if (spline) {
@@ -2130,6 +2132,18 @@ plot_dose_response <- function(
             )
         }
     }
+
+    g <- g + geom_point(data = plot_list_points, size = 2.5)
+    g <- g + geom_errorbar(
+        data = plot_list_points,
+        aes(
+            ymin = lower, # value - sigma,
+            ymax = upper # value + sigma
+        ),
+        size = 0.5,
+        width = 0.5,
+        alpha = 0.5
+    )
 
     g <- g + theme_bw(base_size = 20) +
         theme(
