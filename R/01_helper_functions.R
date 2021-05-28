@@ -1895,6 +1895,7 @@ plot_time_course <- function(
     g <- g + geom_point(data = plot_list_points, size = 2.5)
 
     if(plot_line != "prediction"){
+        errwidth <- max(plot_list_points$time)/50
         g <- g + geom_errorbar(
             data = plot_list_points,
             aes(
@@ -1902,10 +1903,11 @@ plot_time_course <- function(
                 ymax = upper # value + sigma
             ),
             size = 0.5,
-            width = 0.5,
+            width = errwidth,
             alpha = 0.5
         )
     } else {
+        errwidth <- max(plot_list_points$time)/50
         g <- g + geom_errorbar(
             data = plot_list_points,
             aes(
@@ -1913,7 +1915,7 @@ plot_time_course <- function(
                 ymax = value + sigma #
             ),
             size = 0.5,
-            width = 0.5,
+            width = errwidth,
             alpha = 0.5
         )
     }
@@ -2134,6 +2136,7 @@ plot_dose_response <- function(
     }
 
     g <- g + geom_point(data = plot_list_points, size = 2.5)
+    errwidth <- max(plot_list_points$time)/50
     g <- g + geom_errorbar(
         data = plot_list_points,
         aes(
@@ -2141,7 +2144,7 @@ plot_dose_response <- function(
             ymax = upper # value + sigma
         ),
         size = 0.5,
-        width = 0.5,
+        width = errwidth,
         alpha = 0.5
     )
 
