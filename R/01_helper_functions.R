@@ -1877,14 +1877,14 @@ plot_time_course <- function(
                 )
             }
         } else {
-            g <- g + geom_line(data = plot_list_line, size = 1, color = "grey")
+            g <- g + geom_line(data = plot_list_line, size = 1)#, color = "grey")
             g <- g + geom_ribbon(
                 data = plot_list_line,
                 aes(
                     ymin = lower, # value - sigma,
-                    ymax = upper, # value + sigma,
-                    fill = "grey",
-                    color = "grey"
+                    ymax = upper, # value + sigma#,
+                    # fill = "grey",
+                    # color = "grey"
                 ),
                 alpha = 0.3,
                 lty = 0
@@ -2120,14 +2120,14 @@ plot_dose_response <- function(
                 )
             }
         } else {
-            g <- g + geom_line(data = plot_list_line, size = 1, color = "grey")
+            g <- g + geom_line(data = plot_list_line, size = 1)#, color = "grey")
             g <- g + geom_ribbon(
                 data = plot_list_line,
                 aes(
                     ymin = lower, # value - sigma,
-                    ymax = upper, # value + sigma,
-                    fill = "grey",
-                    color = "grey"
+                    ymax = upper#, # value + sigma,
+                    # fill = "grey",
+                    # color = "grey"
                 ),
                 alpha = 0.3,
                 lty = 0
