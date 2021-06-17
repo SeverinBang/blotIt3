@@ -2136,7 +2136,7 @@ plot_dose_response <- function(
     }
 
     g <- g + geom_point(data = plot_list_points, size = 2.5)
-    errwidth <- max(plot_list_points$time)/50
+    errwidth <- max(plot_list_points$dose)/50
     g <- g + geom_errorbar(
         data = plot_list_points,
         aes(
