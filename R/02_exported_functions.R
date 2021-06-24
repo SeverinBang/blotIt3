@@ -117,13 +117,17 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
 #' @param my_order Optional list of target names in the custom order that will
 #' be used for faceting.
 #'
+#' @param plot_scale_x character, defining the scale of the x axis
+#'
+#' @param plot_scale_y character, defining the scale of the y axis
+#'
 #' @param dose_response Logical, indicates if the plot should be dose response
 #'
-#' @param xlab Optional, value passed to \code{xlab} parameter of \link{ggplot}
+#' @param x_lab Optional, value passed to \code{xlab} parameter of \link{ggplot}
 #' for the x-axis. Default is \code{NULL} leading to 'Time' or 'Dose',
 #' respectively.
 #'
-#' @param ylab Optional, value passed to \code{ylab} parameter of \link{ggplot}
+#' @param y_lab Optional, value passed to \code{ylab} parameter of \link{ggplot}
 #' for the y-axis. Default is \code{NULL} leading to 'Signal'.
 #'
 #' @param ... Logical expression used for subsetting the data frames, e.g.
@@ -162,13 +166,14 @@ plot_align_me <- function(out_list,
                           my_colors = NULL,
                           duplicate_zero_points = FALSE,
                           my_order = NULL,
-                          plot_scale = NULL,
+                          plot_scale_y = NULL,
+                          plot_scale_x = NULL,
                           dose_response = FALSE,
-                          xlab = NULL,
-                          ylab = NULL
+                          x_lab = NULL,
+                          y_lab = NULL
                           ) {
     if (FALSE) {
-        out_list <- out_dose
+        out_list <- out_list
         plot_points <- "aligned"
         plot_line <- "aligned"
         spline <- FALSE
@@ -179,9 +184,13 @@ plot_align_me <- function(out_list,
         my_colors <- NULL
         duplicate_zero_points <- FALSE
         my_order <- NULL
-        plot_scale = NULL
+        plot_scale_y = NULL
+        plot_scale_x = "log10"
         dose_response <- TRUE
         x_title <- "bingo"
+        x_lab <- NULL
+        y_lab <- NULL
+
     }
     if (!plot_points %in% c("original", "scaled", "prediction", "aligned") |
         !plot_line %in% c("original", "scaled", "prediction", "aligned")) {
@@ -351,34 +360,259 @@ plot_align_me <- function(out_list,
 
 
 
-    if (dose_response == FALSE ) {
-        g <- plot_time_course(
-            plot_list_points = plot_list_points,
-            plot_list_line = plot_list_line,
-            plot_points = plot_points,
-            plot_line = plot_line,
-            spline = spline,
+    # if (dose_response == FALSE ) {
+    #     g <- plot_time_course(
+    #         plot_list_points = plot_list_points,
+    #         plot_list_line = plot_list_line,
+    #         plot_points = plot_points,
+    #         plot_line = plot_line,
+    #         spline = spline,
+    #         scales = scales,
+    #         align_zeros = align_zeros,
+    #         ncol = ncol,
+    #         my_colors = my_colors,
+    #         xlab = xlab,
+    #         ylab = ylab
+    #     )
+    # } else {
+    #     g <- plot_dose_response(
+    #         plot_list_points = plot_list_points,
+    #         plot_list_line = plot_list_line,
+    #         plot_points = plot_points,
+    #         plot_line = plot_line,
+    #         spline = spline,
+    #         scales = scales,
+    #         align_zeros = align_zeros,
+    #         ncol = ncol,
+    #         my_colors = my_colors,
+    #         xlab = xlab,
+    #         ylab = ylab
+    #     )
+    # }
+
+
+
+# * settings for dose response/time course --------------------------------
+
+    if (dose_response == TRUE) {
+        x_label <-  "Dose"
+        x_variable <- "dose"
+    } else {
+        x_label <-  "Time"
+        x_variable <- "time"
+    }
+
+    y_label <- "Signal"
+
+    if (!is.null(x_lab)){
+        x_label <- x_lab
+    }
+
+    if (!is.null(y_lab)){
+        y_label <- y_lab
+    }
+
+    if (!is.null(plot_scale_x)) {
+        errwidth <- 0
+    } else {
+        errwidth <- max(plot_list_points[x_variable])/50
+    }
+
+
+# * plotting --------------------------------------------------------------
+    if (plot_points == "aligned" & plot_line == "aligned") {
+        g <- ggplot(
+            data = plot_list_points,
+            aes_string(
+                x = x_variable,
+                y = "value",
+                group = "distinguish",
+                color = "distinguish",
+                fill = "distinguish"
+            )
+        )
+        g <- g + facet_wrap(~name, scales = scales, ncol = ncol)
+        if (is.null(my_colors)) {
+            # my_colors <- scale_color_brewer()
+            # # c(
+            # # "#000000",
+            # # "#C5000B",
+            # # "#0084D1",
+            # # "#579D1C",
+            # # "#FF950E",
+            # # "#4B1F6F",
+            # # "#CC79A7",
+            # # "#006400",
+            # # "#F0E442",
+            # # "#8B4513",
+            # # rep("gray", 100)
+            # # )
+            # g <- g + scale_color_manual("Condition", values = my_colors) +
+            #     scale_fill_manual("Condition", values = my_colors)
+        } else {
+            my_colors <- c(my_colors, rep("gray", 100))
+            g <- g + scale_color_manual("Distinguished", values = my_colors) +
+                scale_fill_manual("Distinguished", values = my_colors)
+        }
+    } else {
+        g <- ggplot(
+            data = plot_list_points,
+            aes_string(
+                x = x_variable,
+                y = "value",
+                group = "scaling",
+                color = "scaling",
+                fill = "scaling"
+            )
+        )
+        g <- g + facet_wrap(
+            ~ name * distinguish,
             scales = scales,
-            align_zeros = align_zeros,
-            ncol = ncol,
-            my_colors = my_colors,
-            xlab = xlab,
-            ylab = ylab
+            ncol = ncol
+        )
+        if (is.null(my_colors)) {
+            # my_colors <- scale_color_brewer()
+            # # c(
+            # # "#000000",
+            # # "#C5000B",
+            # # "#0084D1",
+            # # "#579D1C",
+            # # "#FF950E",
+            # # "#4B1F6F",
+            # # "#CC79A7",
+            # # "#006400",
+            # # "#F0E442",
+            # # "#8B4513",
+            # # rep("gray", 100)
+            # # )
+            # g <- g + scale_color_manual("Scaling", values = my_colors) +
+            #     scale_fill_manual("Scaling", values = my_colors)
+        } else {
+            my_colors <- c(my_colors, rep("gray", 100))
+            g <- g + scale_color_manual("Scaled", values = my_colors) +
+                scale_fill_manual("Scaled", values = my_colors)
+        }
+    }
+
+
+    if (spline) {
+        g <- g + geom_errorbar(
+            data = plot_list_line,
+            aes(
+                ymin = lower, # value - sigma,
+                ymax = upper # value + sigma
+            ),
+            width = 0
+        )
+        g <- g + geom_smooth(
+            data = plot_list_line,
+            se = FALSE,
+            method = "lm",
+            formula = y ~ poly(x, 3)
         )
     } else {
-        g <- plot_dose_response(
-            plot_list_points = plot_list_points,
-            plot_list_line = plot_list_line,
-            plot_points = plot_points,
-            plot_line = plot_line,
-            spline = spline,
-            scales = scales,
-            align_zeros = align_zeros,
-            ncol = ncol,
-            my_colors = my_colors,
-            xlab = xlab,
-            ylab = ylab
+        if (plot_points == plot_line | plot_line == "prediction") {
+            g <- g + geom_line(data = plot_list_line, size = 1)
+            if (plot_line == "prediction") {
+                g <- g + geom_ribbon(
+                    data = plot_list_line,
+                    aes(
+                        # probably this should be changed back
+                        ymin = value - sigma, # lower
+                        ymax = value + sigma # upper
+                    ),
+                    alpha = 0.1,
+                    lty = 0
+                )
+            }
+        } else {
+            g <- g + geom_line(data = plot_list_line, size = 1)#, color = "grey")
+            g <- g + geom_ribbon(
+                data = plot_list_line,
+                aes(
+                    ymin = lower, # value - sigma,
+                    ymax = upper, # value + sigma#,
+                    # fill = "grey",
+                    # color = "grey"
+                ),
+                alpha = 0.3,
+                lty = 0
+            )
+        }
+    }
+
+    g <- g + geom_point(data = plot_list_points, size = 2.5)
+
+    if(plot_line != "prediction"){
+        g <- g + geom_errorbar(
+            data = plot_list_points,
+            aes(
+                ymin = lower, # value - sigma,
+                ymax = upper # value + sigma
+            ),
+            size = 0.5,
+            width = errwidth,
+            alpha = 0.5
         )
+    } else {
+        g <- g + geom_errorbar(
+            data = plot_list_points,
+            aes(
+                ymin = value - sigma, # ,
+                ymax = value + sigma #
+            ),
+            size = 0.5,
+            width = errwidth,
+            alpha = 0.5
+        )
+    }
+
+
+    g <- g + theme_bw(base_size = 20) +
+        theme(
+            legend.position = "top",
+            legend.key = element_blank(),
+            strip.background = element_rect(color = NA, fill = NA),
+            axis.line.x = element_line(size = 0.3, colour = "black"),
+            axis.line.y = element_line(size = 0.3, colour = "black"),
+            panel.grid.major.x = element_blank(),
+            panel.grid.major.y = element_blank(),
+            panel.grid.minor = element_blank(),
+            panel.border = element_blank(),
+            panel.background = element_blank(),
+            plot.margin = unit(c(0, 0.5, 0.5, 0.5), "cm")
+        )
+    g <- g + xlab(paste0("\n",x_label)) + ylab(paste0(y_label,"\n"))
+
+    if (align_zeros) {
+        if (plot_points != "original") {
+            # scale y-axes (let them start at same minimum determined by
+            # smallest value-sigma and end at individual ymax)
+            plot_list_points <- as.data.table(plot_list_points)
+            blank_data <- plot_list_points[
+                ,
+                list(ymax = max(upper), ymin = min(lower)),
+                by = c("name", "distinguish", "scaling")
+            ]
+            blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
+            blank_data[
+                ,
+                ":="(ymax = ymaximal(ymax)),
+                by = c("name", "distinguish", "scaling")
+            ] # protein specific maximum
+            blank_data <- melt(
+                blank_data,
+                id.vars = c("name", "distinguish", "scaling"),
+                measure.vars = c("ymax", "ymin"),
+                value.name = "value"
+            )
+            blank_data[, ":="(x_variable = 0, variable = NULL)]
+            setnames(blank_data, "x_variable", x_variable)
+            g <- g + geom_blank(
+                data = as.data.frame(blank_data),
+                aes_string(x = x_variable, y = "value")
+            )
+        }
     }
 
 
@@ -386,12 +620,20 @@ plot_align_me <- function(out_list,
         g <- g + labs(caption = caption_text)
     }
 
-    if (is.null(plot_scale)) {
+    if (is.null(plot_scale_y)) {
         if (out_list$output_scale != "linear") {
             g <- g + coord_trans(y = out_list$output_scale)
         }
-    } else if (plot_scale %in% c("log", "log2", "log10")) {
-        g <- g + coord_trans(y = plot_scale)
+    } else if (plot_scale_y %in% c("log", "log2", "log10")) {
+        g <- g + scale_y_continuous(trans = plot_scale_y)
+    }
+
+    if (is.null(plot_scale_x)) {
+        if (out_list$output_scale != "linear") {
+            g <- g + coord_trans(x = out_list$output_scale)
+        }
+    } else if (plot_scale_x %in% c("log", "log2", "log10")) {
+        g <- g + scale_x_continuous(trans = plot_scale_x)
     }
 
 
