@@ -41,8 +41,8 @@
 #' parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 #' "name1, ..." refers to variables in \code{data}. If the same values
 #' of "par1, ..." should be assumed for all data, "name1" can be "1".
-#' @param parameter_fit_scale string defining on which scale the parameters are
-#' fitted, value must be one of c("linear", "log", "log2", "log10").
+#' @param parameter_fit_scale_log logical, defining if the parameters are
+#' fitted on a log scale. Computational reasons.
 #' @param normalize logical indicating whether the distinguishing effect
 #' parameter should be normalized to unit mean.
 #'
@@ -54,7 +54,8 @@
 #'
 #' @param verbose logical, print out information about each fit
 #' @param normalize_input logical, if TRUE the input will be normalized before
-#' scaling. see \code{split_data}.
+#' scaling, helpful if convergence fails because the data varies for to many
+#' orders of magnitude.
 #' @param iterlim numerical argument passed to \link{trust}.
 #'
 #' @details Alignment of time-course data is achieved by an alignment
@@ -124,7 +125,7 @@ align_me <- function(data,
                      distinguish = NULL,
                      scaling = NULL,
                      error = NULL,
-                     parameter_fit_scale = "log",
+                     parameter_fit_scale_log = TRUE,
                      normalize = TRUE,
                      average_techn_rep = FALSE,
                      verbose = FALSE,
@@ -162,7 +163,7 @@ align_me <- function(data,
         distinguish <- yi ~ name + time + condition
         scaling <- sj ~ name + ID
         error <- sigmaR ~ name + 1
-        parameter_fit_scale <- "log"
+        parameter_fit_scale_log <- TRUE
         normalize <- TRUE
         average_techn_rep <- FALSE
         names_as_factors <- TRUE
@@ -182,7 +183,7 @@ align_me <- function(data,
         distinguish = distinguish,
         scaling = scaling,
         error = error,
-        parameter_fit_scale = parameter_fit_scale,
+        parameter_fit_scale_log = parameter_fit_scale_log,
         output_scale = output_scale
     )
 
@@ -214,8 +215,7 @@ align_me <- function(data,
     to_be_scaled <- split_for_scaling(
         data,
         effects_values,
-        normalize_input,
-        parameter_fit_scale
+        normalize_input
     )
 
     # Generate unique list of targets
@@ -285,8 +285,8 @@ align_me <- function(data,
         error_model
     )
 
-    # Apply transformation according to given 'parameter_fit_scale' parameter
-    if (parameter_fit_scale == "log") {
+    # Apply transformation according to given 'parameter_fit_scale_log' parameter
+    if (parameter_fit_scale_log == TRUE) {
         model <- replace_symbols(parameters, paste0(
             "exp(", parameters,
             ")"
@@ -302,42 +302,8 @@ align_me <- function(data,
         if (verbose) {
             cat("model, errormodel and constraint are scaled: x <- exp(x)\n")
         }
-    } else if (parameter_fit_scale == "log2") {
-        model <- replace_symbols(parameters, paste0(
-            "2^(", parameters,
-            ")"
-        ), model)
-        error_model <- replace_symbols(parameters, paste0(
-            "2^(",
-            parameters, ")"
-        ), error_model)
-        constraint <- replace_symbols(parameters, paste0(
-            "2^(",
-            parameters, ")"
-        ), constraint)
-        if (verbose) {
-            cat("model, errormodel and constraint are scaled: x <- 2^(x)\n")
-        }
-    } else if (parameter_fit_scale == "log10") {
-        model <- replace_symbols(parameters, paste0(
-            "10^(", parameters,
-            ")"
-        ), model)
-        error_model <- replace_symbols(parameters, paste0(
-            "10^(",
-            parameters, ")"
-        ), error_model)
-        constraint <- replace_symbols(parameters, paste0(
-            "10^(",
-            parameters, ")"
-        ), constraint)
-        if (verbose) {
-            cat("model, errormodel and constraint are scaled: x <- 10^(x)\n")
-        }
-    } else if (parameter_fit_scale == "linear") {
-        if (verbose) {
-            cat("model, errormodel and constraint remain linear scaled.\n")
-        }
+    } else if (verbose == TRUE) {
+        cat("model, errormodel and constraint remain linear scaled.\n")
     }
 
 
@@ -425,7 +391,7 @@ align_me <- function(data,
         verbose = verbose,
         covariates = covariates,
         parameters = parameters,
-        parameter_fit_scale = parameter_fit_scale,
+        parameter_fit_scale_log = parameter_fit_scale_log,
         effects_pars = effects_pars,
         model_expr = model_expr,
         error_model_expr = error_model_expr,

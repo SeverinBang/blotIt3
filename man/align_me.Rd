@@ -11,7 +11,7 @@ align_me(
   distinguish = NULL,
   scaling = NULL,
   error = NULL,
-  parameter_fit_scale = "log",
+  parameter_fit_scale_log = TRUE,
   normalize = TRUE,
   average_techn_rep = FALSE,
   verbose = FALSE,
@@ -56,8 +56,8 @@ parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 "name1, ..." refers to variables in \code{data}. If the same values
 of "par1, ..." should be assumed for all data, "name1" can be "1".}
 
-\item{parameter_fit_scale}{string defining on which scale the parameters are
-fitted, value must be one of c("linear", "log", "log2", "log10").}
+\item{parameter_fit_scale_log}{logical, defining if the parameters are
+fitted on a log scale. Computational reasons.}
 
 \item{normalize}{logical indicating whether the distinguishing effect
 parameter should be normalized to unit mean.}
@@ -71,7 +71,8 @@ should be averaged}
 output should be parsed as factors instead of characters.}
 
 \item{normalize_input}{logical, if TRUE the input will be normalized before
-scaling. see \code{split_data}.}
+scaling, helpful if convergence fails because the data varies for to many
+orders of magnitude.}
 
 \item{iterlim}{numerical argument passed to \link{trust}.}
 }

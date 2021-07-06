@@ -1,1 +1,1 @@
-/home/severin/Documents/PhD/Projects/R/blotIt3/.lintr
+linters: with_defaults()
