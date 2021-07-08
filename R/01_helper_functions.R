@@ -866,7 +866,7 @@ scale_target <- function(current_data,
         # transform parameters back if fitted on log scale
         if (parameter_fit_scale_log == TRUE) {
             values_scaled <- exp(values_scaled)
-            sigmas_scaled <- exp(sigmas_scaled)
+            sigmas_scaled <- values_scaled * sigmas_scaled
         }
         upper_scaled <- values_scaled + sigmas_scaled
         lower_scaled <- values_scaled - sigmas_scaled
