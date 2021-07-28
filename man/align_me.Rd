@@ -18,7 +18,8 @@ align_me(
   names_as_factors = TRUE,
   normalize_input = TRUE,
   output_scale = "linear",
-  iterlim = 100
+  iterlim = 100,
+  ci_profiles = FALSE
 )
 }
 \arguments{
@@ -75,6 +76,12 @@ scaling, helpful if convergence fails because the data varies for to many
 orders of magnitude.}
 
 \item{iterlim}{numerical argument passed to \link{trust}.}
+
+\item{ci_profiles}{Logical, if \code{TRUE}, the confidence intervals (CI) are
+calculated based on the profile likelihood (PL). Default is \code{FALSE}, the
+CI will then be approximated by the Fisher information (FI). Calculation via
+PL is more exact but roughly 20times slower. The FI approximates the CI
+conservatively compared to the PL (FI leads to larger CI).}
 }
 \value{
 Object of class \code{aligned}, i.e. a data frame of the

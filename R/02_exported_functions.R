@@ -518,8 +518,8 @@ plot_align_me <- function(out_list,
                     data = plot_list_line,
                     aes(
                         # probably this should be changed back
-                        ymin = value - sigma, # lower
-                        ymax = value + sigma # upper
+                        ymin = lower,
+                        ymax = upper
                     ),
                     alpha = 0.1,
                     lty = 0
@@ -558,8 +558,8 @@ plot_align_me <- function(out_list,
         g <- g + geom_errorbar(
             data = plot_list_points,
             aes(
-                ymin = value - sigma, # ,
-                ymax = value + sigma #
+                ymin = lowe, # ,
+                ymax = upper #
             ),
             size = 0.5,
             width = errwidth,

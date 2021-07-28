@@ -576,6 +576,7 @@ scale_target <- function(current_data,
     normalize <- pass_parameter_list$normalize
     output_scale <-  pass_parameter_list$output_scale
     iterlim <- pass_parameter_list$iterlim
+    ci_profiles <- pass_parameter_list$ci_profiles
 
 
     current_name <- unique(current_data$name)
@@ -723,6 +724,33 @@ scale_target <- function(current_data,
         cat("Fit converged.\n")
     }
 
+
+#  * * Profiles START -----------------------------------------------------
+    profiles <- NULL
+    if(ci_profiles){
+        # NOTE: profileTest.R and toolsdMod.R must be loaded
+        # source("./tests/my_test/profileTest.R")
+        # source("./tests/my_test/toolsdMod.R")
+        npars <- length(fit_result$argument)
+        #Ptest <<- plotProfile(
+        profiles <- myprofile(obj = objective_function,
+                              pars = fit_result$argument,
+                              whichPar = 1:npars,
+                              pass_parameter_list = pass_parameter_list,
+                              pass_parameter_list2 = pass_parameter_list2)
+        # names(profiles) <- c(names(profiles)[1:5],paste0(names(profiles)[6:(5+npars)], 1:npars))
+        #profileOut[[i]] <- profiles
+        #)
+
+        ci <- confint(profiles, level = 0.682689, val.column = "value")
+    }
+
+
+#  * * Profiles STOP ------------------------------------------------------
+
+
+
+
     residuals_fit <- resolve_function(
         current_parameters = fit_result$argument,
         pass_parameter_list = pass_parameter_list,
@@ -753,6 +781,7 @@ scale_target <- function(current_data,
 
     # * parameter table -------------------------------------------------------
     # Generate parameter table
+
     parameter_table <- data.frame(
         name = current_name,
         level = c(
@@ -763,41 +792,82 @@ scale_target <- function(current_data,
         parameter = names(fit_result$argument),
         value = fit_result$argument,
 
-        # Calculating the error from the inverse of the Fisher information
-        # matrix which is in this case the Hessian, to which the above
-        # calculated Bessel correction is applied.
-        sigma = as.numeric(
-            sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
-        ) * bessel,
+
+
         nll = fit_result$value,
         no_pars = length(fit_result$argument) - normalize,
         no_data = nrow(data_fit)
     )
 
-    # transform parameters back if fitted on log scale
-    if (parameter_fit_scale_log == TRUE) {
-        parameter_table$value <- exp(parameter_table$value)
-        parameter_table$sigma <- exp(parameter_table$sigma)
+    if (ci_profiles == TRUE) {
+        parameter_table$sigma <-  NA
+        parameter_table <- do.call(
+            rbind,
+            lapply(
+                seq_len(nrow(parameter_table)),
+                function (i) {
+                    out <- parameter_table[i,]
+                    out$lower <- ci$lower[
+                        which(ci$name == parameter_table[i,]$parameter)
+                    ]
+                    out$upper <- ci$upper[
+                        which(ci$name == parameter_table[i,]$parameter)
+                    ]
+                    return(out)
+                }
+            )
+        )
+    } else {
+        # Calculating the error from the inverse of the Fisher information
+        # matrix which is in this case the Hessian, to which the above
+        # calculated Bessel correction is applied.
+        parameter_table$sigma <- as.numeric(
+            sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
+        ) * bessel
+#
+#         parameter_table$lower <- parameter_table$value - parameter_table$sigma
+#         parameter_table$upper <- parameter_table$value + parameter_table$sigma
     }
 
 
-    parameter_table$upper <- parameter_table$value + parameter_table$sigma
-    parameter_table$lower <- parameter_table$value - parameter_table$sigma
 
-    scaling_list_parameter_table <- scale_values(
-        parameter_fit_scale_log = parameter_fit_scale_log,
-        output_scale = output_scale,
-        value = parameter_table$value,
-        upper = parameter_table$upper,
-        lower = parameter_table$lower,
-        sigma = parameter_table$sigma
 
-    )
 
-    parameter_table$value <- scaling_list_parameter_table$value
-    parameter_table$upper <- scaling_list_parameter_table$upper
-    parameter_table$lower <- scaling_list_parameter_table$lower
-    parameter_table$sigma <- scaling_list_parameter_table$sigma
+    # transform parameters back if fitted on log scale
+    if (parameter_fit_scale_log == TRUE) {
+        parameter_table$value <- exp(parameter_table$value)
+        parameter_table$sigma <- parameter_table$value * parameter_table$sigma
+        if (ci_profiles == TRUE) {
+            parameter_table$lower <- exp(parameter_table$lower)
+            parameter_table$upper <- exp(parameter_table$upper)
+        } else {
+            parameter_table$lower <- parameter_table$value -
+                parameter_table$sigma
+            parameter_table$upper <- parameter_table$value +
+                parameter_table$sigma
+        }
+
+    }
+
+#
+#     parameter_table$upper <- parameter_table$value + parameter_table$sigma
+#     parameter_table$lower <- parameter_table$value - parameter_table$sigma
+
+    ## Things set up for asymetrical errors
+    # scaling_list_parameter_table <- scale_values(
+    #     parameter_fit_scale_log = parameter_fit_scale_log,
+    #     output_scale = output_scale,
+    #     value = parameter_table$value,
+    #     upper = parameter_table$upper,
+    #     lower = parameter_table$lower,
+    #     sigma = parameter_table$sigma
+    #
+    # )
+    #
+    # parameter_table$value <- scaling_list_parameter_table$value
+    # parameter_table$upper <- scaling_list_parameter_table$upper
+    # parameter_table$lower <- scaling_list_parameter_table$lower
+    # parameter_table$sigma <- scaling_list_parameter_table$sigma
 
 
     if (verbose) {
@@ -819,8 +889,13 @@ scale_target <- function(current_data,
     # * out_prediction --------------------------------------------------------
     # Predicted data
     out_prediction <- current_data
-    out_prediction$sigma <- fit_result$sigma * bessel
     out_prediction$value <- fit_result$prediction
+    out_prediction$sigma <- fit_result$sigma * bessel
+    out_prediction$lower <- out_prediction$value - out_prediction$sigma
+    out_prediction$upper <- out_prediction$value + out_prediction$sigma
+
+
+
 
 
     # * out_scaled ------------------------------------------------------------
@@ -907,20 +982,78 @@ scale_target <- function(current_data,
     # The values are the fitted parameters for the respective fixed
     # parameter ensembles.
     out_aligned$value <- residuals_fit[[effects_pars[[1]][1]]]
+    out_aligned$parameter <- c(
+        do.call(
+            rbind,
+            lapply(
+                seq_len(nrow(out_aligned)),
+                function (i) {
+                    out <- parameter_table[
+                        which(parameter_table$level == do.call(
+                            paste_,
+                            c(out_aligned[i,effects_values[[1]]])
+                        )
+                        ),
+                    ]$parameter
+                }
+            )
+        )
+    )
 
-    # The sigmas are calculated by evaluating the fisher information matrix
-    out_aligned$sigma <- as.numeric(
-        sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
-    )[seq_len(no_initial)] * bessel
+
+
+    if (ci_profiles == TRUE) {
+        out_aligned$sigma <-  NA
+        out_aligned <- do.call(
+            rbind,
+            lapply(
+                seq_len(nrow(out_aligned)),
+                function (i) {
+                    out <- out_aligned[i,]
+                    out$lower <- ci$lower[
+                        which(ci$name == out_aligned[i,]$parameter)
+                    ]
+                    out$upper <- ci$upper[
+                        which(ci$name == out_aligned[i,]$parameter)
+                    ]
+                    return(out)
+                }
+            )
+        )
+    } else {
+
+        # The sigmas are calculated by evaluating the fisher information matrix
+        out_aligned$sigma <- as.numeric(
+            sqrt(diag(2 * MASS::ginv(fit_result$hessian)))
+        )[seq_len(no_initial)] * bessel
+    }
 
     # transform parameters back if fitted on log scale
     if (parameter_fit_scale_log == TRUE) {
         out_aligned$value <- exp(out_aligned$value)
         out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+        if (ci_profiles == TRUE) {
+            out_aligned$lower <- exp(out_aligned$lower)
+            out_aligned$upper <- exp(out_aligned$upper)
+        } else {
+            out_aligned$lower <- out_aligned$value -
+                out_aligned$sigma
+            out_aligned$upper <- out_aligned$value +
+                out_aligned$sigma
+        }
+
     }
 
-    out_aligned$upper <- out_aligned$value + out_aligned$sigma
-    out_aligned$lower <- out_aligned$value - out_aligned$sigma
+
+
+    #
+    # if (parameter_fit_scale_log == TRUE) {
+    #     out_aligned$value <- exp(out_aligned$value)
+    #     out_aligned$sigma <- out_aligned$value * out_aligned$sigma
+    # }
+    #
+    # out_aligned$upper <- out_aligned$value + out_aligned$sigma
+    # out_aligned$lower <- out_aligned$value - out_aligned$sigma
 
     # scaling_list_aligned <- scale_values(
     #     parameter_fit_scale_log = parameter_fit_scale_log,
@@ -943,7 +1076,9 @@ scale_target <- function(current_data,
         effect <- names(parameters)[k]
         my_levels <- as.character(data_fit[[effect]])
         index0 <- which(
-            as.character(parameter_table$parameter) == parameters[k]
+            as.character(
+                gsub('[_0-9]+', '', parameter_table$parameter)
+                ) == parameters[k]
         )
         index1 <- match(my_levels, as.character(parameter_table$level[index0]))
         index <- index0[index1]
@@ -955,7 +1090,10 @@ scale_target <- function(current_data,
         out_aligned = out_aligned,
         original = current_data,
         out_orig_w_parameters = out_orig_w_parameters,
-        parameter_table = parameter_table
+        parameter_table = parameter_table,
+#  * * Profiles START -----------------------------------------------------
+        profiles = profiles
+#  * * Profiles STOP ------------------------------------------------------
     )
 
 
@@ -1030,6 +1168,14 @@ generate_initial_pars <- function(parameters,
             }
         )
     )
+
+    # give intividual names
+    names(initial_parameters) <- paste(
+        names(initial_parameters),
+        seq_along(initial_parameters),
+        sep = "_"
+        )
+
     return(initial_parameters)
 }
 
@@ -1068,10 +1214,10 @@ generate_mask <- function(initial_parameters,
     mask <- lapply(
         seq_along(initial_parameters),
         function(k) {
-            effect <- names(
+            effect <- get_param_class(
                 parameters[
                     match(
-                        names(initial_parameters[k]),
+                        get_param_class(initial_parameters)[k],
                         parameters
                     )
                 ]
@@ -1142,7 +1288,8 @@ resolve_function <- function(current_parameters,
     par_list <- lapply(
         parameters,
         function(n) {
-            subpar <- pars_all[names(pars_all) == n]
+            param_class <- gsub('[_0-9]+', '', names(pars_all))
+            subpar <- pars_all[param_class == n]
             if (n %in% effects_pars[1]) {
                 # Rename entries of the first list (fixed)
                 names(subpar) <- levels_list[[1]]
@@ -1392,13 +1539,13 @@ objective_function <- function(current_parameters,
 
                 # Get the "class" (fixed, latent, or error) of the current k'th
                 # parameter
-                which_par <- match(names(current_parameters)[k], parameters)
+                which_par <- match(get_param_class(current_parameters)[k], parameters)
 
                 # Apply the mask to the residuals
                 residual_jacobian <- residual_deriv[[which_par]] * mask[[k]]
                 variance_jacobian <- variance_deriv[[which_par]] * mask[[k]]
                 constrain_jacobian <- as.numeric(
-                    names(current_parameters[k]) == parameters["distinguish"]
+                    get_param_class(current_parameters)[k] == parameters["distinguish"]
                 ) * c_strength / length(levels_list[[1]])
 
                 # Convert to log if wanted
@@ -1666,6 +1813,21 @@ scale_values <- function(parameter_fit_scale_log,
     return(list(value = value, upper = upper, lower = lower, sigma = sigma))
 }
 
+
+
+# get_param_class() -------------------------------------------------------
+
+#' get parameter class from from individualized name
+#'
+#' @param paramlist list of parameters with names of form 'p_i' with parameter class p and
+#' index i. e.g. 'yi_1'
+#'
+#' @return vector with classes e.g. yi
+#'
+#' @noRd
+get_param_class <- function(paramlist) {
+    classes <- gsub('[_0-9]+', '', names(paramlist))
+}
 
 #' # plot_time_course() ------------------------------------------------------
 #'

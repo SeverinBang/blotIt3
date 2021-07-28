@@ -58,6 +58,12 @@
 #' orders of magnitude.
 #' @param iterlim numerical argument passed to \link{trust}.
 #'
+#' @param ci_profiles Logical, if \code{TRUE}, the confidence intervals (CI) are
+#' calculated based on the profile likelihood (PL). Default is \code{FALSE}, the
+#' CI will then be approximated by the Fisher information (FI). Calculation via
+#' PL is more exact but roughly 20times slower. The FI approximates the CI
+#' conservatively compared to the PL (FI leads to larger CI).
+#'
 #' @details Alignment of time-course data is achieved by an alignment
 #' model which explains the observed data by a function mixing
 #' fixed effects, usually parameters reflecting the "underlying"
@@ -132,7 +138,8 @@ align_me <- function(data,
                      names_as_factors = TRUE,
                      normalize_input = TRUE,
                      output_scale = "linear",
-                     iterlim = 100
+                     iterlim = 100,
+                     ci_profiles = FALSE
                      ) {
     if (FALSE) {
         if (TRUE) {
@@ -168,9 +175,10 @@ align_me <- function(data,
         average_techn_rep <- FALSE
         names_as_factors <- TRUE
         verbose <- TRUE
-        normalize_input <- FALSE
+        normalize_input <- TRUE
         output_scale <- "linear"
         iterlim <- 100
+        ci_profiles <- TRUE
     }
 
 
@@ -402,8 +410,11 @@ align_me <- function(data,
         normalize = normalize,
         model_derivertive_expr = model_derivertive_expr,
         output_scale = output_scale,
-        iterlim = iterlim
+        iterlim = iterlim,
+        ci_profiles = ci_profiles
     )
+
+# * Hand over to scaling --------------------------------------------------
     out <- lapply(
         seq_along(to_be_scaled),
         function(i,
@@ -442,6 +453,22 @@ align_me <- function(data,
             }
         )
     )
+
+
+#  * * Profiles START -----------------------------------------------------
+
+    profileOut <- do.call(rbind, lapply(out, function(o) {
+        if (!inherits(o, "try-error")) {
+            list(o[[7]])
+        } else {
+            NULL
+        }
+    }))
+    names(profileOut) <- targets
+
+#  * * Profiles STOP ------------------------------------------------------
+
+
 
     # add up the "values", i.e. the -2*LL
     attr(parameter_table, "value") <- do.call(
@@ -511,7 +538,10 @@ align_me <- function(data,
         distinguish = effects_values[[1]],
         scaling = effects_values[[2]],
         error = effects_values[[3]],
-        output_scale = output_scale
+        output_scale = output_scale,
+#  * * Profiles START -----------------------------------------------------
+        profiles = profileOut
+#  * * Profiles STOP ------------------------------------------------------
     )
 
     if (names_as_factors == TRUE) {
