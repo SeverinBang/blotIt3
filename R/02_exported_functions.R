@@ -173,9 +173,9 @@ plot_align_me <- function(out_list,
                           y_lab = NULL
                           ) {
     if (FALSE) {
-        out_list <- out_list
-        plot_points <- "aligned"
-        plot_line <- "aligned"
+        out_list <- out_FI
+        plot_points <- "original"
+        plot_line <- "prediction"
         spline <- FALSE
         scales <- "free"
         align_zeros <- TRUE
@@ -186,7 +186,7 @@ plot_align_me <- function(out_list,
         my_order <- NULL
         plot_scale_y = NULL
         plot_scale_x = "log10"
-        dose_response <- TRUE
+        dose_response <- FALSE
         x_title <- "bingo"
         x_lab <- NULL
         y_lab <- NULL
@@ -495,38 +495,57 @@ plot_align_me <- function(out_list,
     }
 
 
-    if (spline) {
-        g <- g + geom_errorbar(
-            data = plot_list_line,
-            aes(
-                ymin = lower, # value - sigma,
-                ymax = upper # value + sigma
-            ),
-            width = 0
-        )
-        g <- g + geom_smooth(
-            data = plot_list_line,
-            se = FALSE,
-            method = "lm",
-            formula = y ~ poly(x, 3)
-        )
-    } else {
-        if (plot_points == plot_line | plot_line == "prediction") {
-            g <- g + geom_line(data = plot_list_line, size = 1)
-            if (plot_line == "prediction") {
+    g <- g + geom_point(data = plot_list_points, size = 2.5)
+    g <- g + geom_line(data = plot_list_line, size = 1)
+
+# * * plot_points == original ---------------------------------------------
+    if (plot_points == "original") {
+        if (plot_line != "original") {
+            if (spline == TRUE) {
+                g <- g + geom_smooth(
+                    data = plot_list_line,
+                    se = FALSE,
+                    method = "lm",
+                    formula = y ~ poly(x, 3)
+                )
+            } else {
                 g <- g + geom_ribbon(
                     data = plot_list_line,
                     aes(
-                        # probably this should be changed back
-                        ymin = lower,
-                        ymax = upper
+                        ymin = lower, # value - sigma,
+                        ymax = upper, # value + sigma#,
+                        # fill = "grey",
+                        # color = "grey"
                     ),
-                    alpha = 0.1,
+                    alpha = 0.3,
                     lty = 0
                 )
             }
+        }
+
+
+# * * plot_points == prediction -------------------------------------------
+    } else if (plot_points == "prediction") {
+        if (plot_line != "prediction") {
+            g <- g + geom_errorbar(
+                data = plot_list_points,
+                aes(
+                    ymin = lower, # value - sigma,
+                    ymax = upper # value + sigma
+                ),
+                size = 0.5,
+                width = errwidth,
+                alpha = 0.5
+            )
+        }
+        if (spline == TRUE) {
+            g <- g + geom_smooth(
+                data = plot_list_line,
+                se = FALSE,
+                method = "lm",
+                formula = y ~ poly(x, 3)
+            )
         } else {
-            g <- g + geom_line(data = plot_list_line, size = 1)#, color = "grey")
             g <- g + geom_ribbon(
                 data = plot_list_line,
                 aes(
@@ -539,33 +558,166 @@ plot_align_me <- function(out_list,
                 lty = 0
             )
         }
+
+
+
+# * * plot_points == scaled -----------------------------------------------
+    } else if (plot_points == "scaled") {
+        if (plot_line != "scaled") {
+            g <- g + geom_errorbar(
+                data = plot_list_points,
+                aes(
+                    ymin = lower, # value - sigma,
+                    ymax = upper # value + sigma
+                ),
+                size = 0.5,
+                width = errwidth,
+                alpha = 0.5
+            )
+        }
+        if (spline == TRUE) {
+            g <- g + geom_smooth(
+                data = plot_list_line,
+                se = FALSE,
+                method = "lm",
+                formula = y ~ poly(x, 3)
+            )
+        } else {
+            g <- g + geom_ribbon(
+                data = plot_list_line,
+                aes(
+                    ymin = lower, # value - sigma,
+                    ymax = upper, # value + sigma#,
+                    # fill = "grey",
+                    # color = "grey"
+                ),
+                alpha = 0.3,
+                lty = 0
+            )
+        }
+
+#  * * plot_points == aligned ---------------------------------------------
+    } else if (plot_points == "aligned") {
+        if (plot_line != "aligned") {
+            g <- g + geom_errorbar(
+                data = plot_list_points,
+                aes(
+                    ymin = lower, # value - sigma,
+                    ymax = upper # value + sigma
+                ),
+                size = 0.5,
+                width = errwidth,
+                alpha = 0.5
+            )
+        } else {
+            if (spline == TRUE) {
+                g <- g + geom_smooth(
+                    data = plot_list_line,
+                    se = FALSE,
+                    method = "lm",
+                    formula = y ~ poly(x, 3)
+                )
+            } else {
+                g <- g + geom_ribbon(
+                    data = plot_list_line,
+                    aes(
+                        ymin = lower, # value - sigma,
+                        ymax = upper, # value + sigma#,
+                        # fill = "grey",
+                        # color = "grey"
+                    ),
+                    alpha = 0.3,
+                    lty = 0
+                )
+            }
+        }
     }
 
-    g <- g + geom_point(data = plot_list_points, size = 2.5)
 
-    if(plot_line != "prediction"){
-        g <- g + geom_errorbar(
-            data = plot_list_points,
-            aes(
-                ymin = lower, # value - sigma,
-                ymax = upper # value + sigma
-            ),
-            size = 0.5,
-            width = errwidth,
-            alpha = 0.5
-        )
-    } else {
-        g <- g + geom_errorbar(
-            data = plot_list_points,
-            aes(
-                ymin = lower, # ,
-                ymax = upper #
-            ),
-            size = 0.5,
-            width = errwidth,
-            alpha = 0.5
-        )
-    }
+
+
+# OOOOOOLD! ---------------------------------------------------------------
+
+#
+#
+#
+#
+#
+#     if (spline) {
+#         g <- g + geom_errorbar(
+#             data = plot_list_line,
+#             aes(
+#                 ymin = lower, # value - sigma,
+#                 ymax = upper # value + sigma
+#             ),
+#             width = 0
+#         )
+#         g <- g + geom_smooth(
+#             data = plot_list_line,
+#             se = FALSE,
+#             method = "lm",
+#             formula = y ~ poly(x, 3)
+#         )
+#     } else {
+#         if (plot_points == plot_line | plot_line == "prediction") {
+#             g <- g + geom_line(data = plot_list_line, size = 1)
+#             if (plot_line == "prediction") {
+#                 g <- g + geom_ribbon(
+#                     data = plot_list_line,
+#                     aes(
+#                         # probably this should be changed back
+#                         ymin = lower,
+#                         ymax = upper
+#                     ),
+#                     alpha = 0.1,
+#                     lty = 0
+#                 )
+#             }
+#         } else {
+#             g <- g + geom_line(data = plot_list_line, size = 1)#, color = "grey")
+#             g <- g + geom_ribbon(
+#                 data = plot_list_line,
+#                 aes(
+#                     ymin = lower, # value - sigma,
+#                     ymax = upper, # value + sigma#,
+#                     # fill = "grey",
+#                     # color = "grey"
+#                 ),
+#                 alpha = 0.3,
+#                 lty = 0
+#             )
+#         }
+#     }
+#
+#     g <- g + geom_point(data = plot_list_points, size = 2.5)
+#
+#     if(plot_line != "prediction"){
+#         g <- g + geom_errorbar(
+#             data = plot_list_points,
+#             aes(
+#                 ymin = lower, # value - sigma,
+#                 ymax = upper # value + sigma
+#             ),
+#             size = 0.5,
+#             width = errwidth,
+#             alpha = 0.5
+#         )
+#     } else {
+#         g <- g + geom_errorbar(
+#             data = plot_list_points,
+#             aes(
+#                 ymin = lower, # ,
+#                 ymax = upper #
+#             ),
+#             size = 0.5,
+#             width = errwidth,
+#             alpha = 0.5
+#         )
+#     }
+#
+
+# END: OOOOOOLD! ----------------------------------------------------------
+
 
 
     g <- g + theme_bw(base_size = 20) +
