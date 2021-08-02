@@ -558,7 +558,7 @@ plot_align_me <- function(out_list,
         g <- g + geom_errorbar(
             data = plot_list_points,
             aes(
-                ymin = lowe, # ,
+                ymin = lower, # ,
                 ymax = upper #
             ),
             size = 0.5,
