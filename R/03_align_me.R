@@ -40,7 +40,8 @@
 #' \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
 #' parameter contained in \code{error}, e.g. "sigma0" and "sigmaR", and
 #' "name1, ..." refers to variables in \code{data}. If the same values
-#' of "par1, ..." should be assumed for all data, "name1" can be "1".
+#' of "par1, ..." should be assumed for all data, the right hand side of ~ has
+#' to reffer to the "name" column of \code{data}.
 #' @param parameter_fit_scale_log logical, defining if the parameters are
 #' fitted on a log scale. Computational reasons.
 #' @param normalize logical indicating whether the distinguishing effect
