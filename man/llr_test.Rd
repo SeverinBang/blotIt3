@@ -37,13 +37,13 @@ llr_data <- read_wide(
     dec = "."
 )
 
-## generate H0: the buffer column is not named as a distinguish effect e.g.
+## generate H0: the buffer column is not named as a biological effect e.g.
 ## not considered as a biological different condition
 H0 <- align_me(
     data = llr_data3,
     model = "yi / sj",
     error_model = "value * sigmaR",
-    distinguish = yi ~ name + time + stimmulus,
+    biological = yi ~ name + time + stimmulus,
     scaling = sj ~ name + ID,
     error = sigmaR ~ name + 1,
     parameter_fit_scale_log = FALSE,
@@ -53,13 +53,13 @@ H0 <- align_me(
     normalize_input = TRUE
 )
 
-## generate H1: here the buffer column is named in the distinguish parameter
+## generate H1: here the buffer column is named in the biological parameter
 ## therefore different entries are considered as biologically different
 H1 <- align_me(
     data = llr_data3,
     model = "yi / sj",
     error_model = "value * sigmaR",
-    distinguish = yi ~ name + time + stimmulus + buffer,
+    biological = yi ~ name + time + stimmulus + buffer,
     scaling = sj ~ name + ID,
     error = sigmaR ~ name + 1,
     parameter_fit_scale_log = FALSE,

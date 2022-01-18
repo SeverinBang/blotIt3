@@ -35,13 +35,13 @@ get_symbols <- function(char, exclude = NULL) {
 
 # identify_effects() ------------------------------------------------------
 
-#' Method to identify the names and values of passed todistinguish, scaling and
+#' Method to identify the names and values of passed to biological, scaling and
 #' error parameters
 #'
 #' The formula-formatted input will be parsed by \link{get_symbols} and the
 #' respective output then passed back
 #'
-#' @param distinguish input for distinguish parameters
+#' @param biological input for biological parameters
 #' @param scaling input for scaling parameters
 #' @param error input for error parameters
 #'
@@ -49,17 +49,17 @@ get_symbols <- function(char, exclude = NULL) {
 #'
 #' @noRd
 
-identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
+identify_effects <- function(biological = NULL, scaling = NULL, error = NULL) {
 
-    # Get distinguish scale and error parameters
-    distinguish_values <- get_symbols(as.character(distinguish)[3])
+    # Get biological scale and error parameters
+    biological_values <- get_symbols(as.character(biological)[3])
     scaling_values <- get_symbols(as.character(scaling)[3])
     error_values <- get_symbols(as.character(error)[3])
 
     # Add intercepts
-    if (attr(terms(distinguish), "intercept") != 0 &
-        length(distinguish_values) == 2) {
-        distinguish_values <- c(distinguish_values, "1")
+    if (attr(terms(biological), "intercept") != 0 &
+        length(biological_values) == 2) {
+        biological_values <- c(biological_values, "1")
     }
     if (attr(terms(scaling), "intercept") != 0 &
         length(scaling_values) == 1) {
@@ -71,17 +71,17 @@ identify_effects <- function(distinguish = NULL, scaling = NULL, error = NULL) {
     }
 
     # Determine to which class parameters belong
-    distinguish_pars <- get_symbols(as.character(distinguish)[2])
+    biological_pars <- get_symbols(as.character(biological)[2])
     scaling_pars <- get_symbols(as.character(scaling)[2])
     error_pars <- get_symbols(as.character(error)[2])
 
     effects_values <- list(
-        distinguish_values = distinguish_values,
+        biological_values = biological_values,
         scaling_values = scaling_values,
         error_values = error_values
     )
     effects_pars <- list(
-        distinguish_pars = distinguish_pars,
+        biological_pars = biological_pars,
         scaling_pars = scaling_pars,
         error_pars = error_pars
     )
@@ -152,24 +152,24 @@ paste_ <- function(...) paste(..., sep = "_")
 # analyze_blocks() --------------------------------------------------------
 
 #' Method to analyze which elements of the given matrix with <number of unique
-#' set of scaling parameters> columns, and <unique set of distinguish
+#' set of scaling parameters> columns, and <unique set of biological
 #' parameters> rows, are on the same scale (same block) and pass a list of lists
 #' of the respective indices.
-#' Each row describes a unique set of distinguishable conditions, e.g. a
+#' Each row describes a unique set of biological conditions, e.g. a
 #' specific target measured under a specific condition at one time point.
 #' The columns describe the sets of scaling parameters as target name and
 #' gel (in case of western blot).
 #'
 #'
 #' @param block_matrix Input matrix, with entries equal to 1 wherever the set of
-#' distinguishable effects (row) is measured und the respective set of scaling
+#' biological effects (row) is measured und the respective set of scaling
 #' effects (column), i.e. each row has a one for each scaling under which it was
-#' measured and each column has a one indicating which distinguishable effects
+#' measured and each column has a one indicating which biological effects
 #' where measured at the respective scaling.
 #' All entries are either one or zero.
 #'
 #' @return List with one entry per scale. Each entry contains a list of row
-#' indices of the sets of distinguishable effects measured under the respective
+#' indices of the sets of biological effects measured under the respective
 #' scale.
 #'
 #' @noRd
@@ -181,18 +181,18 @@ analyze_blocks <- function(block_matrix) {
         cat("matrix contains zero rows which have been eliminated\n")
     }
 
-    number_unique_distinguish <- dim(block_matrix)[1]
+    number_unique_biological <- dim(block_matrix)[1]
     r_components <- list()
     c_components <- list()
 
     counter <- 0
-    while (length(unlist(r_components)) < number_unique_distinguish) {
+    while (length(unlist(r_components)) < number_unique_biological) {
         counter <- counter + 1
 
         if (length(unlist(r_components)) == 0) {
             w <- 1
         } else {
-            my_sample <- (1:number_unique_distinguish)[-unlist(r_components)]
+            my_sample <- (1:number_unique_biological)[-unlist(r_components)]
             w <- min(my_sample)
         }
 
@@ -226,7 +226,7 @@ analyze_blocks <- function(block_matrix) {
 
 #' split_data
 #'
-#' Split data in independent blocks according to distinguish and scaling
+#' Split data in independent blocks according to biological and scaling
 #' variables as being defined for \link{align_me}. Each block will be given an
 #' individual scaling factor.
 #'
@@ -252,22 +252,22 @@ split_for_scaling <- function(data,
 
     # Construnct strings containing the values of the respective effects
     scaling_strings <- Reduce(paste_, data[effects_values[[2]]])
-    distinguish_strings <- Reduce(paste_, data[effects_values[[1]]])
+    biological_strings <- Reduce(paste_, data[effects_values[[1]]])
 
     scaling_strings_unique <- unique(scaling_strings)
-    distinguish_strings_unique <- unique(distinguish_strings)
+    biological_strings_unique <- unique(biological_strings)
 
     # Initialize matrix
     block_matrix <- matrix(
         0,
         ncol = length(scaling_strings_unique),
-        nrow = length(distinguish_strings_unique)
+        nrow = length(biological_strings_unique)
     )
 
     # For every datapoint set the entry in the matrix to 1, corresponding to the
     # index in the respective unique lists of fixed (row) and specific (col)
     for (i in seq_len(nrow(data))) {
-        myrow <- which(distinguish_strings_unique == distinguish_strings[i])
+        myrow <- which(biological_strings_unique == biological_strings[i])
         mycol <- which(scaling_strings_unique == scaling_strings[i])
         block_matrix[myrow, mycol] <- 1
     }
@@ -284,7 +284,7 @@ split_for_scaling <- function(data,
     list_out <- lapply(
         list_of_scalings,
         function(l) {
-            data[distinguish_strings %in% distinguish_strings_unique[l], ]
+            data[biological_strings %in% biological_strings_unique[l], ]
         }
     )
 
@@ -319,7 +319,7 @@ split_for_scaling <- function(data,
 #' @param data Input data, usually output of \link{read_wide}
 #' @param model Model definition as a string
 #' @param error_model Error model definition as a string
-#' @param distinguish Definition of the distinguish effects
+#' @param biological Definition of the biological effects
 #' @param scaling Definition of the scaling effects
 #' @param error Definition of the error effects
 #' @param parameter_fit_scale_log logical, defines the parameter fit scale
@@ -329,17 +329,17 @@ split_for_scaling <- function(data,
 input_check <- function(data = NULL,
                         model = NULL,
                         error_model = NULL,
-                        distinguish = NULL,
+                        biological = NULL,
                         scaling = NULL,
                         error = NULL,
                         parameter_fit_scale_log = NULL,
                         output_scale = NULL) {
 
     # Check if parameters are present
-    if (is.null(model) | is.null(error_model) | is.null(distinguish) |
+    if (is.null(model) | is.null(error_model) | is.null(biological) |
         is.null(scaling) | is.null(error)) {
         stop(
-            "All of model, error_model, distinguish, scaling, error ",
+            "All of model, error_model, biological, scaling, error ",
             "must be set."
         )
     }
@@ -347,7 +347,7 @@ input_check <- function(data = NULL,
     # check data
     column_names <- names(data)
     expected_names <- union(
-        get_symbols(as.character(distinguish)[3]),
+        get_symbols(as.character(biological)[3]),
         union(
             get_symbols(as.character(scaling)[3]),
             get_symbols(as.character(error)[3])
@@ -356,7 +356,7 @@ input_check <- function(data = NULL,
 
     if (!all(expected_names %in% column_names)) {
         stop(
-            "Not all column names set in 'distinguish', 'scaling' and ",
+            "Not all column names set in 'biological', 'scaling' and ",
             "'error' are present in 'data'."
         )
     }
@@ -371,12 +371,12 @@ input_check <- function(data = NULL,
 
 
     # Stop if formulas have the wrong specification
-    if (length(as.character(distinguish)) == 1 |
+    if (length(as.character(biological)) == 1 |
         length(as.character(scaling)) == 1 | length(as.character(error)) == 1) {
-        stop("Do not pass distinguish, scaling or error as string.")
+        stop("Do not pass biological, scaling or error as string.")
     }
-    if (length(as.character(distinguish)) < 3) {
-        stop("Left and right-hand side of formula 'distinguish' is needed")
+    if (length(as.character(biological)) < 3) {
+        stop("Left and right-hand side of formula 'biological' is needed")
     }
     if (length(as.character(scaling)) < 3) {
         stop("Left and right-hand side of formula 'scaling' is needed")
@@ -416,7 +416,7 @@ input_check <- function(data = NULL,
 #'  }
 #'  \item{\code{average_techn_rep}}{
 #'      Logical, if \code{TRUE} technical replicates, that can not be separated
-#'      by the respective \code{distinguish} and \code{scaling} values will be
+#'      by the respective \code{biological} and \code{scaling} values will be
 #'      averaged.
 #'  }
 #'  \item{\code{verbose}}{
@@ -439,7 +439,7 @@ input_check <- function(data = NULL,
 #'  \item{\code{model_expr}}{
 #'      What is passed to \code{model} in \link{align_me} but with the entries
 #'      of \code{parameters} replaced by the respective name (e.g. 'yi' is
-#'      replaced by 'distinguish'). The result is parsed as an expression.
+#'      replaced by 'biological'). The result is parsed as an expression.
 #'  }
 #'  \item{\code{error_model_expr}}{
 #'      Same as \code{model_expr} but with the value of \code{error_model} from
@@ -471,7 +471,7 @@ input_check <- function(data = NULL,
 #' \describe{
 #'  \item{\code{out_prediction}}{
 #'      \code{data.frame} with the columns \code{name}, \code{time},
-#'      \code{value}, \code{sigma}, \code{distinguish}, \code{scaling} and
+#'      \code{value}, \code{sigma}, \code{biological}, \code{scaling} and
 #'      \code{error}.
 #'
 #'      \code{values} contains the predictions by evaluation of the (error-)
@@ -491,9 +491,9 @@ input_check <- function(data = NULL,
 #'  }
 #'  \item{\code{out_aligned}}{
 #'      \code{data.frame} with the original column names, the column
-#'      \code{value} contains the estimated distinguish parameters.
+#'      \code{value} contains the estimated biological parameters.
 #'
-#'      The \code{values} are estimated distinguish parameters, while the errors
+#'      The \code{values} are estimated biological parameters, while the errors
 #'      \code{sigma} are from the Fisher information.
 #'  }
 #'  \item{\code{current_data}}{
@@ -520,7 +520,7 @@ input_check <- function(data = NULL,
 #'      \itemize{
 #'          \item{\code{value}:}{
 #'          Value of the estimated parameters. The ones corresponding to the
-#'          distinguished parameters coincide with the \code{values} column of
+#'          biological parameters coincide with the \code{values} column of
 #'          \code{out_aligned}.
 #'          }
 #'      }
@@ -538,7 +538,7 @@ input_check <- function(data = NULL,
 #'      }
 #'      \itemize{
 #'          \item{\code{no_pars}:}{
-#'          Number of fitted parameters (distinguish, scaling and error), minus
+#'          Number of fitted parameters (biological, scaling and error), minus
 #'          one if \code{normalize = TRUE} in the call of \link{align_me}.
 #'          }
 #'      }
@@ -597,8 +597,8 @@ scale_target <- function(current_data,
     }
 
 
-    # Build a list of string of distinguish/scaling values present
-    data_fit_distinguish <- do.call(
+    # Build a list of string of biological/scaling values present
+    data_fit_biological <- do.call(
         paste_, current_data[, effects_values[[1]], drop = FALSE]
     )
 
@@ -611,7 +611,7 @@ scale_target <- function(current_data,
         if (verbose) {
             cat("Analyzing technical replicates ... ")
         }
-        groups <- interaction(data_fit_distinguish, data_fit_scaling)
+        groups <- interaction(data_fit_biological, data_fit_scaling)
         if (any(duplicated(groups))) {
             current_data <- do.call(rbind, lapply(
                 unique(groups),
@@ -624,7 +624,7 @@ scale_target <- function(current_data,
             ))
             cat(
                 "data points that could not be distinguished by either ",
-                "distinguish\nor scaling variables have been averaged.\n"
+                "biological\nor scaling variables have been averaged.\n"
             )
         } else {
             if (verbose) {
@@ -639,7 +639,7 @@ scale_target <- function(current_data,
             ,
             union(c("name", "time", "value", "sigma"), covariates)
         ],
-        distinguish = do.call(
+        biological = do.call(
             paste_,
             current_data[, effects_values[[1]], drop = FALSE]
         ),
@@ -654,21 +654,21 @@ scale_target <- function(current_data,
         stringsAsFactors = FALSE
     )
 
-    # Retrieve (unique) list of distinguish, scaling and error values
+    # Retrieve (unique) list of biological, scaling and error values
     levels_list <- list(
-        distinguish = unique(as.character(data_fit$distinguish)),
+        biological = unique(as.character(data_fit$biological)),
         scaling = unique(as.character(data_fit$scaling)),
         error = unique(as.character(data_fit$error))
     )
 
     # Combine above lists all_levels will therefore have the length of the
-    # sum of all different distinguish, scaling and error values (in that order)
+    # sum of all different biological, scaling and error values (in that order)
     all_levels <- unlist(
         lapply(
             seq_along(parameters),
             function(k) {
                 switch(names(parameters)[k],
-                    distinguish = levels_list[[1]],
+                    biological = levels_list[[1]],
                     scaling = levels_list[[2]],
                     error = levels_list[[3]]
                 )
@@ -689,7 +689,7 @@ scale_target <- function(current_data,
         data_fit
     )
 
-    fit_pars_distinguish <- NULL
+    fit_pars_biological <- NULL
 
     if (verbose) {
         cat("Starting fit\n")
@@ -698,7 +698,7 @@ scale_target <- function(current_data,
     pass_parameter_list2 <- list(
         data_fit = data_fit,
         levels_list = levels_list,
-        fit_pars_distinguish = fit_pars_distinguish,
+        fit_pars_biological = fit_pars_biological,
         effects_pars = effects_pars,
         mask = mask,
         initial_parameters = initial_parameters
@@ -975,7 +975,7 @@ scale_target <- function(current_data,
 
     # Use one datapoint per unique set of fixed parameters
     out_aligned <- current_data[
-        !duplicated(data_fit$distinguish),
+        !duplicated(data_fit$biological),
         intersect(effects_values[[1]], colnames(current_data))
     ]
 
@@ -1129,7 +1129,7 @@ generate_initial_pars <- function(parameters,
     # is the parameter, and the initial value is 0 for log and 1 for linear.
     # each parameter name-value entry is repeated as many times as there are
     # measurements of the i'th target with this parameter.
-    # Example: distinguish is passed as "ys ~ condition", so the entry with name
+    # Example: biological is passed as "ys ~ condition", so the entry with name
     #   "ys" will be repeated for as many times as there are measurements
     #   with the same "condition" entry.
     initial_parameters <- do.call(
@@ -1143,12 +1143,12 @@ generate_initial_pars <- function(parameters,
                 } else {
                     v <- 1
                 }
-                # Let l be the number of measurements of same type (distinguish,
+                # Let l be the number of measurements of same type (biological,
                 # scaling or error) for the current n
                 l <- switch(
-                    # Get "distinguish", "scaling" or "error" from the current n
+                    # Get "biological", "scaling" or "error" from the current n
                     names(parameters)[n],
-                    distinguish = length(levels_list[[1]]),
+                    biological = length(levels_list[[1]]),
                     scaling = length(levels_list[[2]]),
                     error = length(levels_list[[3]])
                 )
@@ -1240,7 +1240,7 @@ generate_mask <- function(initial_parameters,
 #' categories.
 #'
 #' Additionally, residuals of model evaluations for the set of
-#' \code{current_parameters} \code{fit_pars_distinguish} are calculated by
+#' \code{current_parameters} \code{fit_pars_biological} are calculated by
 #' evaluation of \link{rss_model}.
 #'
 #' @param current_parameters named vector of vectors to be tested currently
@@ -1253,11 +1253,11 @@ generate_mask <- function(initial_parameters,
 #' @param pass_parameter_list2 from the the \code{pass_parameter_list2} argument
 #' the following parameters are used:
 #' \describe{
-#'  \item{\code{fit_pars_distinguish}}{TODO: Check if it is always \code{NULL}?}
+#'  \item{\code{fit_pars_biological}}{TODO: Check if it is always \code{NULL}?}
 #'  \item{\code{levels_list}}{Named list of vectors. One entry per effect with
 #'  the respective name. The entry contains a list of the unique strings
 #'  composed from the entries of \code{effect_values} of the respective effect,
-#'  i.e. the entries of the columns containing e.g. the distinguish-effects
+#'  i.e. the entries of the columns containing e.g. the biological-effects
 #'  (name, time, condition etc.).}
 #'  \item{\code{effects_pars}}{Named list of vectors. One entry per effect with
 #'  the respective name. The entry then contains the string of the effect
@@ -1280,11 +1280,11 @@ resolve_function <- function(current_parameters,
 
 
     parameters <- pass_parameter_list$parameters
-    fit_pars_distinguish <- pass_parameter_list2$fit_pars_distinguish
+    fit_pars_biological <- pass_parameter_list2$fit_pars_biological
     levels_list <- pass_parameter_list2$levels_list
     effects_pars <- pass_parameter_list2$effects_pars
 
-    pars_all <- c(current_parameters, fit_pars_distinguish)
+    pars_all <- c(current_parameters, fit_pars_biological)
     par_list <- lapply(
         parameters,
         function(n) {
@@ -1339,7 +1339,7 @@ resolve_function <- function(current_parameters,
 #' @param par_list Named list with one entry per effect (with the respective
 #' name). The entry contains a named vector with the unique stings of the
 #' respective effect values i.e. the entries of the respective columns (e.g.
-#' name, time, condition etc. for 'distinguish')
+#' name, time, condition etc. for 'biological')
 #' @param pass_parameter_list from the the \code{pass_parameter_list} argument
 #' the following parameters are used:
 #' \describe{
@@ -1472,7 +1472,7 @@ rss_model <- function(par_list,
 #'  \item{\code{levels_list}}{Named list of vectors. One entry per effect with
 #'      the respective name. The entry contains a list of the unique strings
 #'      composed from the entries of \code{effect_values} of the respective
-#'      effect, i.e. the entries of the columns containing e.g. the distinguish
+#'      effect, i.e. the entries of the columns containing e.g. the biological
 #'      effects (name, time, condition etc.).
 #'  }
 #'  \item{\code{mask}}{
@@ -1545,7 +1545,7 @@ objective_function <- function(current_parameters,
                 residual_jacobian <- residual_deriv[[which_par]] * mask[[k]]
                 variance_jacobian <- variance_deriv[[which_par]] * mask[[k]]
                 constrain_jacobian <- as.numeric(
-                    get_param_class(current_parameters)[k] == parameters["distinguish"]
+                    get_param_class(current_parameters)[k] == parameters["biological"]
                 ) * c_strength / length(levels_list[[1]])
 
                 # Convert to log if wanted
@@ -1608,7 +1608,7 @@ objective_function <- function(current_parameters,
 #' @param par_list Named list with one entry per effect (with the respective
 #' name). The entry contains a named vector with the unique stings of the
 #' respective effect values i.e. the entries of the respective columns (e.g.
-#' name, time, condition etc. for 'distinguish')
+#' name, time, condition etc. for 'biological')
 #' @param pass_parameter_list from the the \code{pass_parameter_list} argument
 #' the following parameters are used:
 #' \describe{
@@ -1644,13 +1644,13 @@ evaluate_model <- function(initial_parameters,
 
 
 
-    distinguish <- seq_along(initial_parameters)
+    biological <- seq_along(initial_parameters)
 
     # Generate a list with the entries:
     #   parameters, the sequence saved generated as "fixed", name, time,
     #   value, sigma, fixed, latent, error, ys, sj, sigmaR
     my_list <- c(
-        list(initial_parameters, distinguish = distinguish),
+        list(initial_parameters, biological = biological),
         as.list(data_fit),
         par_list
     )
@@ -1674,7 +1674,7 @@ evaluate_model <- function(initial_parameters,
 #' @param par_list Named list with one entry per effect (with the respective
 #' name). The entry contains a named vector with the unique stings of the
 #' respective effect values i.e. the entries of the respective columns (e.g.
-#' name, time, condition etc. for 'distinguish')
+#' name, time, condition etc. for 'biological')
 #' @param pass_parameter_list from the the \code{pass_parameter_list} argument
 #' the following parameters are used:
 #' \describe{
@@ -1707,9 +1707,9 @@ evaluate_model_jacobian <- function(initial_parameters,
     data_fit <- pass_parameter_list2$data_fit
 
 
-    distinguish <- seq_along(initial_parameters)
+    biological <- seq_along(initial_parameters)
     my_list <- c(
-        list(initial_parameters, distinguish = distinguish), as.list(data_fit),
+        list(initial_parameters, biological = biological), as.list(data_fit),
         par_list
     )
     names(my_list)[1] <- effects_pars[[1]][1]
@@ -1871,9 +1871,9 @@ get_param_class <- function(paramlist) {
 #'             aes(
 #'                 x = time,
 #'                 y = value,
-#'                 group = distinguish,
-#'                 color = distinguish,
-#'                 fill = distinguish
+#'                 group = biological,
+#'                 color = biological,
+#'                 fill = biological
 #'             )
 #'         )
 #'         g <- g + facet_wrap(~name, scales = scales, ncol = ncol)
@@ -1896,8 +1896,8 @@ get_param_class <- function(paramlist) {
 #'             #     scale_fill_manual("Condition", values = my_colors)
 #'         } else {
 #'             my_colors <- c(my_colors, rep("gray", 100))
-#'             g <- g + scale_color_manual("Distinguished", values = my_colors) +
-#'                 scale_fill_manual("Distinguished", values = my_colors)
+#'             g <- g + scale_color_manual("Biological", values = my_colors) +
+#'                 scale_fill_manual("Biological", values = my_colors)
 #'         }
 #'     } else {
 #'         g <- ggplot(
@@ -1911,7 +1911,7 @@ get_param_class <- function(paramlist) {
 #'             )
 #'         )
 #'         g <- g + facet_wrap(
-#'             ~ name * distinguish,
+#'             ~ name * biological,
 #'             scales = scales,
 #'             ncol = ncol
 #'         )
@@ -2039,17 +2039,17 @@ get_param_class <- function(paramlist) {
 #'             blank_data <- plot_list_points[
 #'                 ,
 #'                 list(ymax = max(upper), ymin = min(lower)),
-#'                 by = c("name", "distinguish", "scaling")
+#'                 by = c("name", "biological", "scaling")
 #'             ]
 #'             blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
 #'             blank_data[
 #'                 ,
 #'                 ":="(ymax = ymaximal(ymax)),
-#'                 by = c("name", "distinguish", "scaling")
+#'                 by = c("name", "biological", "scaling")
 #'             ] # protein specific maximum
 #'             blank_data <- melt(
 #'                 blank_data,
-#'                 id.vars = c("name", "distinguish", "scaling"),
+#'                 id.vars = c("name", "biological", "scaling"),
 #'                 measure.vars = c("ymax", "ymin"),
 #'                 value.name = "value"
 #'             )
@@ -2105,7 +2105,7 @@ get_param_class <- function(paramlist) {
 #'
 #'
 #'     if (!("dose" %in% names(plot_list_points))) {
-#'         stop("'dose' must be set as a 'distinguish' parameter in align_me()\n")
+#'         stop("'dose' must be set as a 'biological' parameter in align_me()\n")
 #'     }
 #'
 #'     ## plot
@@ -2115,9 +2115,9 @@ get_param_class <- function(paramlist) {
 #'             aes(
 #'                 x = dose,
 #'                 y = value,
-#'                 group = distinguish,
-#'                 color = distinguish,
-#'                 fill = distinguish
+#'                 group = biological,
+#'                 color = biological,
+#'                 fill = biological
 #'             )
 #'         )
 #'         g <- g + facet_wrap(~name, scales = scales, ncol = ncol)
@@ -2140,8 +2140,8 @@ get_param_class <- function(paramlist) {
 #'             #     scale_fill_manual("Condition", values = my_colors)
 #'         } else {
 #'             my_colors <- c(my_colors, rep("gray", 100))
-#'             g <- g + scale_color_manual("Distinguished", values = my_colors) +
-#'                 scale_fill_manual("Distinguished", values = my_colors)
+#'             g <- g + scale_color_manual("Biological", values = my_colors) +
+#'                 scale_fill_manual("Biological", values = my_colors)
 #'         }
 #'     } else {
 #'         g <- ggplot(
@@ -2155,7 +2155,7 @@ get_param_class <- function(paramlist) {
 #'             )
 #'         )
 #'         g <- g + facet_wrap(
-#'             ~ name * distinguish,
+#'             ~ name * biological,
 #'             scales = scales,
 #'             ncol = ncol
 #'         )
@@ -2266,17 +2266,17 @@ get_param_class <- function(paramlist) {
 #'             blank_data <- plot_list_points[
 #'                 ,
 #'                 list(ymax = max(upper), ymin = min(lower)),
-#'                 by = c("name", "distinguish", "scaling")
+#'                 by = c("name", "biological", "scaling")
 #'             ]
 #'             blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
 #'             blank_data[
 #'                 ,
 #'                 ":="(ymax = ymaximal(ymax)),
-#'                 by = c("name", "distinguish", "scaling")
+#'                 by = c("name", "biological", "scaling")
 #'             ] # protein specific maximum
 #'             blank_data <- melt(
 #'                 blank_data,
-#'                 id.vars = c("name", "distinguish", "scaling"),
+#'                 id.vars = c("name", "biological", "scaling"),
 #'                 measure.vars = c("ymax", "ymin"),
 #'                 value.name = "value"
 #'             )

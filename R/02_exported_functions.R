@@ -59,7 +59,7 @@ read_wide <- function(file, description = NULL, time = 1, header = TRUE, ...) {
         )
     }
 
-    # Distinguish description data from measurement data
+    # biological description data from measurement data
     description_entries <- my_data[, n_description]
     rest_long <- unlist(my_data[, -n_description])
 
@@ -234,7 +234,7 @@ plot_align_me <- function(out_list,
     }
 
 
-    distinguish <- out_list$distinguish
+    biological <- out_list$biological
     scaling <- out_list$scaling
 
     plot_list <- out_list
@@ -256,7 +256,7 @@ plot_align_me <- function(out_list,
         }
     }
 
-    # add columns containing the respective scaling and distinguish effects
+    # add columns containing the respective scaling and biological effects
 
     # aligned
 
@@ -267,22 +267,22 @@ plot_align_me <- function(out_list,
     }
 
 
-    plot_list$aligned$distinguish <- do.call(
+    plot_list$aligned$biological <- do.call(
         paste0,
         plot_list$aligned[
             ,
-            distinguish[!(distinguish %in% c("name", x_value))],
+            biological[!(biological %in% c("name", x_value))],
             drop = FALSE
         ]
     )
     plot_list$aligned$scaling <- NA
 
     # scaled
-    plot_list$scaled$distinguish <- do.call(
+    plot_list$scaled$biological <- do.call(
         paste0,
         out_list$scaled[
             ,
-            distinguish[!(distinguish %in% c("name", x_value))],
+            biological[!(biological %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -292,11 +292,11 @@ plot_align_me <- function(out_list,
     )
 
     # prediction
-    plot_list$prediction$distinguish <- do.call(
+    plot_list$prediction$biological <- do.call(
         paste0,
         out_list$prediction[
             ,
-            distinguish[!(distinguish %in% c("name", x_value))],
+            biological[!(biological %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -306,11 +306,11 @@ plot_align_me <- function(out_list,
     )
 
     # original
-    plot_list$original$distinguish <- do.call(
+    plot_list$original$biological <- do.call(
         paste0,
         out_list$original[
             ,
-            distinguish[!(distinguish %in% c("name", x_value))],
+            biological[!(biological %in% c("name", x_value))],
             drop = FALSE
         ]
     )
@@ -354,7 +354,7 @@ plot_align_me <- function(out_list,
     )
 
     # we want to keep the x ticks!
-    if (scales == "distinguish") {
+    if (scales == "biological") {
         scales <- "free_x"
     }
 
@@ -426,9 +426,9 @@ plot_align_me <- function(out_list,
             aes_string(
                 x = x_variable,
                 y = "value",
-                group = "distinguish",
-                color = "distinguish",
-                fill = "distinguish"
+                group = "biological",
+                color = "biological",
+                fill = "biological"
             )
         )
         g <- g + facet_wrap(~name, scales = scales, ncol = ncol)
@@ -451,8 +451,8 @@ plot_align_me <- function(out_list,
             #     scale_fill_manual("Condition", values = my_colors)
         } else {
             my_colors <- c(my_colors, rep("gray", 100))
-            g <- g + scale_color_manual("Distinguished", values = my_colors) +
-                scale_fill_manual("Distinguished", values = my_colors)
+            g <- g + scale_color_manual("Biological", values = my_colors) +
+                scale_fill_manual("Biological", values = my_colors)
         }
     } else {
         g <- ggplot(
@@ -466,7 +466,7 @@ plot_align_me <- function(out_list,
             )
         )
         g <- g + facet_wrap(
-            ~ name * distinguish,
+            ~ name * biological,
             scales = scales,
             ncol = ncol
         )
@@ -744,17 +744,17 @@ plot_align_me <- function(out_list,
             blank_data <- plot_list_points[
                 ,
                 list(ymax = max(upper), ymin = min(lower)),
-                by = c("name", "distinguish", "scaling")
+                by = c("name", "biological", "scaling")
             ]
             blank_data[, ":="(ymin = min(ymin))] # same minimum for all proteins
             blank_data[
                 ,
                 ":="(ymax = ymaximal(ymax)),
-                by = c("name", "distinguish", "scaling")
+                by = c("name", "biological", "scaling")
             ] # protein specific maximum
             blank_data <- melt(
                 blank_data,
-                id.vars = c("name", "distinguish", "scaling"),
+                id.vars = c("name", "biological", "scaling"),
                 measure.vars = c("ymax", "ymin"),
                 value.name = "value"
             )
@@ -824,13 +824,13 @@ plot_align_me <- function(out_list,
 #'     dec = "."
 #' )
 #'
-#' ## generate H0: the buffer column is not named as a distinguish effect e.g.
+#' ## generate H0: the buffer column is not named as a biological effect e.g.
 #' ## not considered as a biological different condition
 #' H0 <- align_me(
 #'     data = llr_data3,
 #'     model = "yi / sj",
 #'     error_model = "value * sigmaR",
-#'     distinguish = yi ~ name + time + stimmulus,
+#'     biological = yi ~ name + time + stimmulus,
 #'     scaling = sj ~ name + ID,
 #'     error = sigmaR ~ name + 1,
 #'     parameter_fit_scale_log = FALSE,
@@ -840,13 +840,13 @@ plot_align_me <- function(out_list,
 #'     normalize_input = TRUE
 #' )
 #'
-#' ## generate H1: here the buffer column is named in the distinguish parameter
+#' ## generate H1: here the buffer column is named in the biological parameter
 #' ## therefore different entries are considered as biologically different
 #' H1 <- align_me(
 #'     data = llr_data3,
 #'     model = "yi / sj",
 #'     error_model = "value * sigmaR",
-#'     distinguish = yi ~ name + time + stimmulus + buffer,
+#'     biological = yi ~ name + time + stimmulus + buffer,
 #'     scaling = sj ~ name + ID,
 #'     error = sigmaR ~ name + 1,
 #'     parameter_fit_scale_log = FALSE,
@@ -860,12 +860,12 @@ plot_align_me <- function(out_list,
 #' llr_test(H0, H1)
 #' @export
 llr_test <- function(H0, H1, check = TRUE) {
-    distinguish0 <- union(
-        H0$distinguish[!(H0$distinguish %in% c("name", "time"))],
+    biological0 <- union(
+        H0$biological[!(H0$biological %in% c("name", "time"))],
         "1"
     )
-    distinguish1 <- union(
-        H1$distinguish[!(H1$distinguish %in% c("name", "time"))],
+    biological1 <- union(
+        H1$biological[!(H1$biological %in% c("name", "time"))],
         "1"
     )
 
@@ -877,7 +877,7 @@ llr_test <- function(H0, H1, check = TRUE) {
 
     if (check) {
         if (
-            !all(distinguish0 %in% distinguish1) |
+            !all(biological0 %in% biological1) |
                 !all(scaling0 %in% scaling1) | !all(error0 %in% error1)
         ) {
             stop("H0 is not a special case of H1.")

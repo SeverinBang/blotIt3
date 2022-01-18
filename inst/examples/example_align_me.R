@@ -12,7 +12,7 @@ out <- align_me(
   data = example_data,
   model = "yi / sj",
   error_model = "value * sigmaR",
-  distinguish = yi ~ name + time + condition,
+  biological = yi ~ name + time + condition,
   scaling = sj ~ name + ID,
   error = sigmaR ~ name + 1,
   input_scale = "linear",

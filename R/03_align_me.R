@@ -25,7 +25,7 @@
 #' can contain parameters, e.g. "sigma0" and "sigmaR", or numeric
 #' variables from \code{data}, e.g. "value" or "time".
 #'
-#' @param distinguish two-sided formula of the form
+#' @param biological two-sided formula of the form
 #' \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
 #' parameters contained in \code{model}, e.g. "yi", and "name1, ..."
 #' refers to variables in \code{data}, e.g. "condition".
@@ -44,7 +44,7 @@
 #' to reffer to the "name" column of \code{data}.
 #' @param parameter_fit_scale_log logical, defining if the parameters are
 #' fitted on a log scale. Computational reasons.
-#' @param normalize logical indicating whether the distinguishing effect
+#' @param normalize logical indicating whether the biological effect
 #' parameter should be normalized to unit mean.
 #'
 #' @param average_techn_rep logical, indicates if the technical replicates
@@ -81,10 +81,10 @@
 #'  a list of data frames
 #' \describe{
 #' \item{aligned}{data.frame with the original column names plus the column
-#'     \code{sigma}. Each set of unique distinguish effects i.e. biological
+#'     \code{sigma}. Each set of unique biological effects i.e. biological
 #'     different condition (e.g. time point, target and treatment) has one set
 #'     of \code{value} and \code{sigma}. The values are the estimated true
-#'     values i.e. the determined distinguish parameters. The errors in the
+#'     values i.e. the determined biological parameters. The errors in the
 #'     \code{sigma} column are estimated by employing the fisher information
 #'     to quantify the uncertainty of the respective fit. Both, the value and
 #'     its error are on the common scale.}
@@ -103,7 +103,7 @@
 #'
 #' \item{parameter}{Parameter table with the columns: \code{name}: the name of
 #'     the current target, \code{level}: the pasted unique set of effects
-#'     (distinguish, scaling or error), \code{parameter}: the parameter
+#'     (biological, scaling or error), \code{parameter}: the parameter
 #'     identifier as defined in the (error) model, \code{value} and \code{sigma}
 #'     containing the determined values and corresponding errors, \code{nll}:
 #'     twice the negative log-likelihood of the fit, \code{no_pars} and
@@ -113,7 +113,7 @@
 #'     \link{trust::trust} by the objective function and \code{df} the degrees
 #'     of freedom of the fitting process.}
 #'
-#' \item{distinguish}{Names of the columns containing the distinguish effects}
+#' \item{biological}{Names of the columns containing the biological effects}
 #' \item{scaling}{Names of the columns containing the scaling effects}
 #' \item{error}{Names of the columns containing the error effects}
 #' }
@@ -129,7 +129,7 @@
 align_me <- function(data,
                      model = NULL,
                      error_model = NULL,
-                     distinguish = NULL,
+                     biological = NULL,
                      scaling = NULL,
                      error = NULL,
                      parameter_fit_scale_log = TRUE,
@@ -168,7 +168,7 @@ align_me <- function(data,
 
         model <- "yi / sj"
         error_model <- "value * sigmaR"
-        distinguish <- yi ~ name + time + condition
+        biological <- yi ~ name + time + condition
         scaling <- sj ~ name + ID
         error <- sigmaR ~ name + 1
         parameter_fit_scale_log <- TRUE
@@ -189,7 +189,7 @@ align_me <- function(data,
         data = data,
         model = model,
         error_model = error_model,
-        distinguish = distinguish,
+        biological = biological,
         scaling = scaling,
         error = error,
         parameter_fit_scale_log = parameter_fit_scale_log,
@@ -208,9 +208,9 @@ align_me <- function(data,
         data <- data$original
     }
 
-    ## read distinguishing, scaling and error effects from input
+    ## read biological, scaling and error effects from input
     effects <- identify_effects(
-        distinguish = distinguish,
+        biological = biological,
         scaling = scaling,
         error = error
     )
@@ -238,7 +238,7 @@ align_me <- function(data,
         to_be_scaled[[n]]$name <- targets[n]
     }
 
-    ## Get distinguish, scaling and error parameter from model and error model
+    ## Get biological, scaling and error parameter from model and error model
     parameters <- get_symbols(c(model, error_model), exclude = colnames(data))
 
     # Include the normalization term as a constraint if saied so in the function
@@ -279,11 +279,11 @@ align_me <- function(data,
         ) > 0
     ) {
         stop("Not all paramters are defined in either arguments
-         'scaling', 'distinguish' or 'error'")
+         'scaling', 'biological' or 'error'")
     }
 
     # Name the respective parameters fixed, latent and error
-    names(parameters)[parameters %in% effects_pars[1]] <- "distinguish"
+    names(parameters)[parameters %in% effects_pars[1]] <- "biological"
     names(parameters)[parameters %in% effects_pars[2]] <- "scaling"
     names(parameters)[parameters %in% effects_pars[3]] <- "error"
 
@@ -536,7 +536,7 @@ align_me <- function(data,
         original = out_combined$original,
         original_with_parameters = out_combined$original_with_parameters,
         parameter = parameter_table,
-        distinguish = effects_values[[1]],
+        biological = effects_values[[1]],
         scaling = effects_values[[2]],
         error = effects_values[[3]],
         output_scale = output_scale,

@@ -73,7 +73,7 @@ scaled_data <- align_me(
   data = imported_data,
   model = "yi / sj",
   error_model = "value * sigmaR",
-  distinguish = yi ~ name + time + condition,
+  biological = yi ~ name + time + condition,
   scaling = sj ~ name + ID,
   error = sigmaR ~ name + 1,
   parameter_fit_scale = "log",
@@ -87,9 +87,9 @@ We will go now through the parameters individually:
 - `data` A long table, usually the output of `read_wide`
 - `model` A formula like describing the model used for aligning. The present one `yi / sj` means that the measured values `Y_i` are the real values `yi` scaled by scaling factors `sj`. The model therefore is the real value divided by the corresponding scaling factor.
 - `error_model` A description of which errors affect the data. Here, only a relative error is present, where the parameter `sigmaR` is scaled by the respective `value`
-- `distinguish` Description of which parameter (left hand side of the tilde) represented by which columns (right hand side of the tilde) contain the "distinguishable effects". In the present example, the model states that the real value is represented by `yi` -- which is the left hand side of the present `distinguish` entry. The present right hand side is "name", "time" and "condition".
+- `biological` Description of which parameter (left hand side of the tilde) represented by which columns (right hand side of the tilde) contain the "biological effects". In the present example, the model states that the real value is represented by `yi` -- which is the left hand side of the present `biological` entry. The present right hand side is "name", "time" and "condition".
 In short: we state that the entries "name", "time" and "condition" contain _real_, biological differences.
-- `scaling` Same as above, but here is defined which columns contain identificators of different scaling. Here it is "name" and "ID", meaning that measurements with differ in this effects, (but have the same `distinguish` effects) are scaled upon another.
+- `scaling` Same as above, but here is defined which columns contain identificators of different scaling. Here it is "name" and "ID", meaning that measurements with differ in this effects, (but have the same `biological` effects) are scaled upon another.
 - `error` Describes how the error affects the values individually. The present formulation means, that the error parameter is _not_ individually adjusted.
 - `parameter_fit_scale` Describes the scale on which the parameter are fitted. `align_me()` accepts "linear", "log", "log2" and "log10". The default is "Linear".
 - `average_techn_rep` A logical parameter that indicates, if technical replicates should be averaged before the scaling.
@@ -97,12 +97,12 @@ In short: we state that the entries "name", "time" and "condition" contain _real
 - `normalize_input` If set to `TRUE`, the data will be scaled before the actual scaling. This means that the raw input will be scaled to a common order of magnitude before the scaling parameters will be calculated. This is only a computational aid, to eliminate a rare fail of convergence when the different values differ by many orders of magnitude. Setting this to `TRUE` makes only sense (and is only supported) for `parameter_fit_scale = "linear"`.
 
 The result of `align_me()` is a list with the entries
-- `aligned` A `data.frame` with the columns containing the distinguish effects as well as the columns `value` containing the "estimated true values" and `sigma` containing the uncertainty of the fits. Both are on common 
+- `aligned` A `data.frame` with the columns containing the biological effects as well as the columns `value` containing the "estimated true values" and `sigma` containing the uncertainty of the fits. Both are on common 
 - `scaled` The original data but with the values scaled to common scale and errors from the evaluation of the error model, also scaled to common scale (obeying Gaussian error propagation).
 - `prediction` The scales and sigma are from the evaluation of the respective models (on original scale).
 - `original` Just the original parameters
 - `original_with_parameters` As above but with additional columns for the estimated parameters. 
-- `distinguish` Names of the columns defined to contain the `distinguish` effects.
+- `biological` Names of the columns defined to contain the `biological` effects.
 - `scaling` Names of the columns defined to contain the `scaling` effects.
 
 ### Plot Data

@@ -25,19 +25,19 @@ test_that("split_for_scaling()", {
     sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
 
     effects_values <- list(
-        distinguish_values = c("name", "time", "condition"),
+        biological_values = c("name", "time", "condition"),
         scaling_values = c("name", "ID"),
         error_values = "name"
     )
 
     effects_values_1 <- list(
-        distinguish_values = c("name", "time", "condition"),
+        biological_values = c("name", "time", "condition"),
         scaling_values = c("name"),
         error_values = "name"
     )
 
     effects_values_2 <- list(
-        distinguish_values = c("name", "time", "condition"),
+        biological_values = c("name", "time", "condition"),
         scaling_values = c("ID"),
         error_values = "name"
     )
@@ -169,7 +169,7 @@ test_that("input_check()", {
             data = sim_data_long,
             model = "yi / sj",
             error_model = "value * sigmaR",
-            distinguish = yi ~ name + time + condition,
+            biological = yi ~ name + time + condition,
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
             parameter_fit_scale = "linear"
@@ -182,13 +182,13 @@ test_that("input_check()", {
             data = sim_data_long,
             model = "yi / sj",
             error_model = "value * sigmaR",
-            distinguish = yi ~ name + time + condition + wrong,
+            biological = yi ~ name + time + condition + wrong,
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
             parameter_fit_scale = "linear"
         ),
         paste0(
-            "Not all column names set in 'distinguish', 'scaling' and 'error' ",
+            "Not all column names set in 'biological', 'scaling' and 'error' ",
             "are present in 'data'."
         )
     )
@@ -198,12 +198,12 @@ test_that("input_check()", {
             data = sim_data_long,
             model = "yi / sj",
             error_model = "value * sigmaR",
-            # distinguish = "yi ~ name + time + condition",
+            # biological = "yi ~ name + time + condition",
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
             parameter_fit_scale = "linear"
         ),
-        "All of model, error_model, distinguish, scaling, error must be set."
+        "All of model, error_model, biological, scaling, error must be set."
     )
 
     expect_error(
@@ -211,12 +211,12 @@ test_that("input_check()", {
             data = sim_data_long,
             # model = "yi / sj",
             error_model = "value * sigmaR",
-            # distinguish = "yi ~ name + time + condition",
+            # biological = "yi ~ name + time + condition",
             scaling = sj ~ name + ID,
             # error = sigmaR ~ name + 1,
             parameter_fit_scale = "linear"
         ),
-        "All of model, error_model, distinguish, scaling, error must be set."
+        "All of model, error_model, biological, scaling, error must be set."
     )
 
     expect_error(
@@ -224,7 +224,7 @@ test_that("input_check()", {
             data = sim_data_long,
             model = "yi / sj",
             error_model = "value * sigmaR",
-            distinguish = "yi ~ name + time + condition",
+            biological = "yi ~ name + time + condition",
             scaling = sj ~ name + ID,
             error = sigmaR ~ name + 1,
             parameter_fit_scale = "wrong"
@@ -237,20 +237,20 @@ test_that("input_check()", {
 # generate_initial_pars() -------------------------------------------------
 test_that("generate_initial_pars()", {
     parameters <- c(
-        "distinguish" = "yi",
+        "biological" = "yi",
         "scaling" = "sj",
         "error" = "sigmaR"
     )
 
     levels_list <- list(
-        distinguish = c(
-            "distinguish_1",
-            "distinguish_2",
-            "distinguish_3",
-            "distinguish_4",
-            "distinguish_5",
-            "distinguish_6",
-            "distinguish_7"
+        biological = c(
+            "biological_1",
+            "biological_2",
+            "biological_3",
+            "biological_4",
+            "biological_5",
+            "biological_6",
+            "biological_7"
         ),
         scaling = c(
             "scaling_1",
@@ -325,7 +325,7 @@ test_that("generate_initial_pars()", {
             parameters = parameters,
             parameter_fit_scale = "log2",
             levels_list = list(
-                distinguish = c(
+                biological = c(
                     "pAKT_0_0Uml Epo",
                     "pAKT_5_0Uml Epo",
                     "pAKT_10_0Uml Epo"
@@ -352,10 +352,10 @@ test_that("generate_initial_pars()", {
             parameters = parameters,
             parameter_fit_scale = "linear",
             levels_list = list(
-                distinguish = c(
-                    "distinguish_a",
-                    "distinguish_b",
-                    "distinguish_c"
+                biological = c(
+                    "biological_a",
+                    "biological_b",
+                    "biological_c"
                 ),
                 scaling = c(
                     "scaling_a",
@@ -433,7 +433,7 @@ test_that("objective_function()", {
             NaN,
             NaN
         ),
-        distinguish = c(
+        biological = c(
             "pAKT_0_0Uml Epo",
             "pAKT_5_0Uml Epo",
             "pAKT_10_0Uml Epo",
@@ -479,13 +479,13 @@ test_that("objective_function()", {
 
 
     test_parameters <- c(
-        "distinguish" = "yi",
+        "biological" = "yi",
         "scaling" = "sj",
         "error" = "sigmaR"
     )
 
     test_levels_list <- list(
-        distinguish = c(
+        biological = c(
             "pAKT_0_0Uml Epo",
             "pAKT_5_0Uml Epo",
             "pAKT_10_0Uml Epo",
@@ -503,7 +503,7 @@ test_that("objective_function()", {
     )
 
     test_effects_pars <- list(
-        distinguish_pars = "yi",
+        biological_pars = "yi",
         scaling_pars = "sj",
         error_pars = "sigmaR"
     )
@@ -530,23 +530,23 @@ test_that("objective_function()", {
         test_data_fit
     )
 
-    test_model_expr <- parse(text = "yi[distinguish]/sj[scaling]")
+    test_model_expr <- parse(text = "yi[biological]/sj[scaling]")
     test_error_model <- parse(
-        text = "(yi[distinguish]/sj[scaling])* sigmaR[error]"
+        text = "(yi[biological]/sj[scaling])* sigmaR[error]"
     )
 
     test_model_jacobian_expr <- list(
-        distinguish = parse(text = "1/sj[scaling]"),
-        scaling = parse(text = "-(yi[distinguish]/sj[scaling]^2)"),
+        biological = parse(text = "1/sj[scaling]"),
+        scaling = parse(text = "-(yi[biological]/sj[scaling]^2)"),
         error = parse(text = "0")
     )
 
     test_error_model_jacobian_expr <- list(
-        distinguish = parse(text = "1/sj[scaling]*sigmaR[error]"),
+        biological = parse(text = "1/sj[scaling]*sigmaR[error]"),
         scaling = parse(
-            text = "-(yi[distinguish]/sj[scaling]^2*sigmaR[error])"
+            text = "-(yi[biological]/sj[scaling]^2*sigmaR[error])"
         ),
-        error = parse(text = "(yi[distinguish]/sj[scaling])")
+        error = parse(text = "(yi[biological]/sj[scaling])")
     )
 
     test_constraint_expr <- parse(text = "1e3 * (mean( yi ) - 1)")
@@ -624,7 +624,7 @@ test_that("split_for_scaling()", {
     sim_data_long <- read_wide(sim_data_wide_file, description = seq_len(3))
 
     test_effect_values <- list(
-        distinguish_values = c("name", "time", "condition"),
+        biological_values = c("name", "time", "condition"),
         scaling_values = c("name", "ID"),
         error_values = c("name")
     )
@@ -735,7 +735,7 @@ test_that("resolve_function()", {
             NaN,
             NaN
         ),
-        distinguish = c(
+        biological = c(
             "pAKT_0_0Uml Epo",
             "pAKT_5_0Uml Epo",
             "pAKT_10_0Uml Epo",
@@ -781,13 +781,13 @@ test_that("resolve_function()", {
 
 
     test_parameters <- c(
-        "distinguish" = "yi",
+        "biological" = "yi",
         "scaling" = "sj",
         "error" = "sigmaR"
     )
 
     test_levels_list <- list(
-        distinguish = c(
+        biological = c(
             "pAKT_0_0Uml Epo",
             "pAKT_5_0Uml Epo",
             "pAKT_10_0Uml Epo",
@@ -805,7 +805,7 @@ test_that("resolve_function()", {
     )
 
     test_effects_pars <- list(
-        distinguish_pars = "yi",
+        biological_pars = "yi",
         scaling_pars = "sj",
         error_pars = "sigmaR"
     )
@@ -832,23 +832,23 @@ test_that("resolve_function()", {
         test_data_fit
     )
 
-    test_model_expr <- parse(text = "yi[distinguish]/sj[scaling]")
+    test_model_expr <- parse(text = "yi[biological]/sj[scaling]")
     test_error_model <- parse(
-        text = "(yi[distinguish]/sj[scaling])* sigmaR[error]"
+        text = "(yi[biological]/sj[scaling])* sigmaR[error]"
     )
 
     test_model_jacobian_expr <- list(
-        distinguish = parse(text = "1/sj[scaling]"),
-        scaling = parse(text = "-(yi[distinguish]/sj[scaling]^2)"),
+        biological = parse(text = "1/sj[scaling]"),
+        scaling = parse(text = "-(yi[biological]/sj[scaling]^2)"),
         error = parse(text = "0")
     )
 
     test_error_model_jacobian_expr <- list(
-        distinguish = parse(text = "1/sj[scaling]*sigmaR[error]"),
+        biological = parse(text = "1/sj[scaling]*sigmaR[error]"),
         scaling = parse(
-            text = "-(yi[distinguish]/sj[scaling]^2*sigmaR[error])"
+            text = "-(yi[biological]/sj[scaling]^2*sigmaR[error])"
         ),
-        error = parse(text = "(yi[distinguish]/sj[scaling])")
+        error = parse(text = "(yi[biological]/sj[scaling])")
     )
 
     test_constraint_expr <- parse(text = "1e3 * (mean( yi ) - 1)")

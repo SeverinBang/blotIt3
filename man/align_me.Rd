@@ -8,7 +8,7 @@ align_me(
   data,
   model = NULL,
   error_model = NULL,
-  distinguish = NULL,
+  biological = NULL,
   scaling = NULL,
   error = NULL,
   parameter_fit_scale_log = TRUE,
@@ -39,7 +39,7 @@ deviation of a value, e.g. "sigma0 + value * sigmaR". This model
 can contain parameters, e.g. "sigma0" and "sigmaR", or numeric
 variables from \code{data}, e.g. "value" or "time".}
 
-\item{distinguish}{two-sided formula of the form
+\item{biological}{two-sided formula of the form
 \code{par1+par2+... ~ name1+name2+...} where "par1, par2, ..." are
 parameters contained in \code{model}, e.g. "yi", and "name1, ..."
 refers to variables in \code{data}, e.g. "condition".
@@ -61,7 +61,7 @@ to reffer to the "name" column of \code{data}.}
 \item{parameter_fit_scale_log}{logical, defining if the parameters are
 fitted on a log scale. Computational reasons.}
 
-\item{normalize}{logical indicating whether the distinguishing effect
+\item{normalize}{logical indicating whether the biological effect
 parameter should be normalized to unit mean.}
 
 \item{average_techn_rep}{logical, indicates if the technical replicates
@@ -90,10 +90,10 @@ alignment result containing an attribute "outputs":
  a list of data frames
 \describe{
 \item{aligned}{data.frame with the original column names plus the column
-    \code{sigma}. Each set of unique distinguish effects i.e. biological
+    \code{sigma}. Each set of unique biological effects i.e. biological
     different condition (e.g. time point, target and treatment) has one set
     of \code{value} and \code{sigma}. The values are the estimated true
-    values i.e. the determined distinguish parameters. The errors in the
+    values i.e. the determined biological parameters. The errors in the
     \code{sigma} column are estimated by employing the fisher information
     to quantify the uncertainty of the respective fit. Both, the value and
     its error are on the common scale.}
@@ -112,7 +112,7 @@ alignment result containing an attribute "outputs":
 
 \item{parameter}{Parameter table with the columns: \code{name}: the name of
     the current target, \code{level}: the pasted unique set of effects
-    (distinguish, scaling or error), \code{parameter}: the parameter
+    (biological, scaling or error), \code{parameter}: the parameter
     identifier as defined in the (error) model, \code{value} and \code{sigma}
     containing the determined values and corresponding errors, \code{nll}:
     twice the negative log-likelihood of the fit, \code{no_pars} and
@@ -122,7 +122,7 @@ alignment result containing an attribute "outputs":
     \link{trust::trust} by the objective function and \code{df} the degrees
     of freedom of the fitting process.}
 
-\item{distinguish}{Names of the columns containing the distinguish effects}
+\item{biological}{Names of the columns containing the biological effects}
 \item{scaling}{Names of the columns containing the scaling effects}
 \item{error}{Names of the columns containing the error effects}
 }
@@ -164,7 +164,7 @@ out <- align_me(
   data = example_data,
   model = "yi / sj",
   error_model = "value * sigmaR",
-  distinguish = yi ~ name + time + condition,
+  biological = yi ~ name + time + condition,
   scaling = sj ~ name + ID,
   error = sigmaR ~ name + 1,
   input_scale = "linear",
