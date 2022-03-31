@@ -1,5 +1,7 @@
 # blotIt3 - a framework for alignment of biological replicate data
 
+## IMPORTANT: this package is abandond, and will be deleted soon. Current developement happenes in https://github.com/JetiLab/blotIt
+
 The present package is a rewritten version of [blotIt2](https://github.com/dkaschek/blotIt2) by Daniel Kaschek. The aim of this toolbox is to scale biological replicate data to a common scale, making the quantitative data of different gels comparable.
 
 Please note that blotIt3 and blotIt2 *can* be used in parallel. All functions have different names, so they can not only be installed but also loaded and used simultaneously (great for double checking).
